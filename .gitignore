@@ -54,7 +54,7 @@ target/
 .env
 
 # Pycharm
-.idea
+.idea/
 
 # Spyder
 .spyproject/
