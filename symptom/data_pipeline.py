@@ -1,6 +1,6 @@
 from sklearn.model_selection import train_test_split
 import scipy.signal
-
+import numpy as np
 
 #Import helper functions:
 import tool as tool

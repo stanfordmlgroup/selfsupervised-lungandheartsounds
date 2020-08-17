@@ -43,6 +43,7 @@ def main():
         i_list.append(i)
         rec_annotations.append(a)
         rec_annotations_dict[s] = a
+        break
     recording_info = pd.concat(i_list, axis = 0)
     recording_info.head()
 
@@ -86,17 +87,22 @@ def main():
     train_gen = data_generator([none_train, c_train, w_train, c_w_train], [1,1,1,1])
     test_gen = feed_all([none_test, c_test, w_test,c_w_test])
 
-    model = get_model(sample_height, sample_width)
+    model = None
+    path = 'symptom_model.h5'
+    if os.path.exists(path)
+        model = keras.models.load_model(path)
+    else:
+        model = get_model(sample_height, sample_width)
+        # plot_model(model, show_shapes=True, show_layer_names = True)
+        # Image(filename='model.png')
+        stats = model.fit(x = train_gen.generate_keras(batch_size), 
+                            steps_per_epoch = train_gen.n_available_samples() // batch_size,
+                            validation_data = test_gen.generate_keras(batch_size),
+                            validation_steps = test_gen.n_available_samples() // batch_size, 
+                            epochs = n_epochs)
+        model.save(path)
 
-    # plot_model(model, show_shapes=True, show_layer_names = True)
-    # Image(filename='model.png')
-
-
-    stats = model.fit_generator(generator = train_gen.generate_keras(batch_size), 
-                                steps_per_epoch = train_gen.n_available_samples() // batch_size,
-                                validation_data = test_gen.generate_keras(batch_size),
-                                validation_steps = test_gen.n_available_samples() // batch_size, 
-                                epochs = n_epochs)
+    assert model
 
     plt.figure(figsize = (15,5))
     plt.subplot(1,2,1)
