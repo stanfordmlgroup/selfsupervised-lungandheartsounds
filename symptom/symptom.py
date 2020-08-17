@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import os
 
 from keras.utils.vis_utils import plot_model
-from IPython.display import Image
+#from IPython.display import Image
 from sklearn.metrics import classification_report, confusion_matrix
 
 #Keras implementation
@@ -21,7 +21,7 @@ import mfcc
 import data_pipeline as dp
 
 
-def main():
+def main():    
     # Load in input data
     # TODO: replace path to data
     df_no_diagnosis = pd.read_csv('../data/demographic_info.txt', names = 
@@ -30,8 +30,8 @@ def main():
     # Load in outputs
     diagnosis = pd.read_csv('../data/patient_diagnosis.csv', names = ['Patient number', 'Diagnosis'])
  
-
-    root = '../data/Respiratory_Sound_Database/audio_and_txt_files/'
+    print('collecting files')
+    root = '../data/data/audio_and_txt_files/'
     filenames = [s.split('.')[0] for s in os.listdir(path = root) if '.txt' in s]
 
     # Get annotations
@@ -66,7 +66,7 @@ def main():
 
     file_label_df = pd.DataFrame(data = {'filename':filename_list, 'no label':no_label_list, 'crackles only':crack_list, 'wheezes only':wheeze_list, 'crackles and wheezees':both_sym_list})
 
-
+    print('extracting files')
     target_sample_rate = 22000 
     sample_length_seconds = 5
     sample_dict = dp.extract_all_training_samples(filenames, rec_annotations_dict, root, target_sample_rate, sample_length_seconds) #sample rate lowered to meet memory constraints
@@ -77,21 +77,23 @@ def main():
     [none_train, c_train, w_train, c_w_train] = [training_clips['none'], training_clips['crackles'], training_clips['wheezes'], training_clips['both']]
     [none_test, c_test, w_test,c_w_test] =  [test_clips['none'], test_clips['crackles'], test_clips['wheezes'], test_clips['both']]
 
+
     np.random.shuffle(none_train)
     np.random.shuffle(c_train)
     np.random.shuffle(w_train)
     np.random.shuffle(c_w_train)
 
     #Data pipeline objects
-    train_gen = data_generator([none_train, c_train, w_train, c_w_train], [1,1,1,1])
-    test_gen = feed_all([none_test, c_test, w_test,c_w_test])
-
+    print('preparing data')
+    train_gen = dp.data_generator([none_train, c_train, w_train, c_w_train], [1,1,1,1])
+    test_gen = dp.feed_all([none_test, c_test, w_test,c_w_test])
+    print('preparing model')
     model = get_model(sample_height, sample_width)
 
     # plot_model(model, show_shapes=True, show_layer_names = True)
     # Image(filename='model.png')
 
-
+    print('training model')
     stats = model.fit_generator(generator = train_gen.generate_keras(batch_size), 
                                 steps_per_epoch = train_gen.n_available_samples() // batch_size,
                                 validation_data = test_gen.generate_keras(batch_size),
@@ -118,7 +120,7 @@ def main():
     print(classification_report(labels, predictions, target_names = ['none','crackles','wheezes','both']))
     print(confusion_matrix(labels, predictions))
 
-
+    model.save('symptom_model.h5')
 
 
 def Extract_Annotation_Data(file_name, root):
