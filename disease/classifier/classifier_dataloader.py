@@ -13,6 +13,7 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 vggish = torch.hub.load('harritaylor/torchvggish', 'vggish')
 vggish.eval()
 from glob import glob
+import splitfolders
 
 class LungSoundsDataset(Dataset):
     def __init__(self,root,label_file,transform=None):
@@ -48,28 +49,18 @@ class LungSoundsDataset(Dataset):
 
 
         return {"x":x,"y":y}
+    def get_label(self, pt_id, label_df):
+        return label_df[label_df['pt_id'] == int(pt_id)]['label'].iloc[0]
 
-def get_label(pt_id, label_df):
-    return label_df[label_df['pt_id'] == int(pt_id)]['label'].iloc[0]
-def map(label):
-    out=None
-    if label == 'Healthy':
-        out=0
-    elif label == 'Asthma':
-        out = 2
-    elif label == 'Bronchiectasis':
-        out = 2
-    elif label == 'Bronchiolitis':
-        out = 2
-    elif label == 'COPD':
-        out = 1
-    elif label == 'LRTI':
-        out = 2
-    elif label == 'Pneumonia':
-        out = 2
-    elif label == 'URTI':
-        out=2
-    return out
+    def map(self,label):
+        out=None
+        if label == 'Healthy':
+            out=0
+        elif label == 'COPD':
+            out = 1
+        elif label == 'Other':
+            out = 2
+        return out
 
 
 def lungsounds_dataloader(batch_size,data_dir,label_file="B:\\Users\\psoni\\Projects\\lungsounds\\torchvggish\\data\\Respiratory_Sound_Database\\patient_diagnosis.csv",split_name=None):
@@ -100,12 +91,14 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
 
     return comp_len
 
-if __name__=="__main__":
-    diag_csv = '../data/Respiratory_Sound_Database/disease_labels.csv'
+def process(data_path='../../data'):
+    diag_csv = os.path.join(data_path,'patient_diagnosis.csv')
     diagnosis = pd.read_csv(diag_csv, names=['pId', 'diagnosis'])
+    diagnosis['diagnosis']=diagnosis['diagnosis'].apply(diag_map)
 
+    diagnosis.to_csv(os.path.join(os.getcwd(),'../data/disease_labels.csv'), index=False, header=["pt_id","label"])
     ds = diagnosis['diagnosis'].unique()
-    audio_text_loc = '../data/Respiratory_Sound_Database/audio_and_txt_files'
+    audio_text_loc = os.path.join(data_path,'raw')
     files = [s.split('.')[0] for s in os.listdir(path=audio_text_loc) if '.txt' in s]
     files_ = []
 
@@ -125,9 +118,9 @@ if __name__=="__main__":
     files_df = pd.merge(files_df, diagnosis, on='pId')
     files_df['len_per_slice'] = files_df['end'].sub(files_df['start'], axis=0)
     force_max_len = math.ceil(boxplot_stats(files_df['len_per_slice'])[0]['whishi'])
-    os.makedirs('output')
+    os.makedirs('../data/processed')
     for d in ds:
-        path = os.path.join('output', d)
+        path = os.path.join('../data/processed', d)
         os.makedirs(path)
     i = 0  # iterator for file naming
 
@@ -149,7 +142,7 @@ if __name__=="__main__":
             else:
                 i = 0
         n_filename = filename + '_' + str(i) + '.wav'
-        path = 'output/' + diag + '/' + n_filename
+        path = '../data/processed/' + diag + '/' + n_filename
 
         print('processing ' + n_filename + '...')
 
@@ -162,4 +155,18 @@ if __name__=="__main__":
 
         sf.write(file=path, data=padded_data, samplerate=samplingrate)
 
-    os.system('cmd /k "split_folders B:\\Users\\psoni\\Projects\\lungsounds\\torchvggish\\classifier\\output --output B:\\Users\\psoni\\Projects\\lungsounds\\torchvggish\\data\\Respiratory_Sound_Database\\output --ratio .8 .1 .1"')
+def diag_map(diag):
+    if diag=="Healthy":
+        return diag
+    if diag=="COPD":
+        return diag
+    else:
+        return diag.replace(diag, "Other")
+
+def split(input_path='../data/processed', output_path='../data/output', seed=252):
+    splitfolders.ratio(input_path,output=output_path,seed=seed, ratio=(0.8,0.0,0.2))
+
+if __name__=="__main__":
+    process()
+    split()
+

@@ -71,3 +71,6 @@ target/
 
 # Mypy cache
 .mypy_cache/
+/data/raw/
+/data.tar
+/disease/data/processed/*
