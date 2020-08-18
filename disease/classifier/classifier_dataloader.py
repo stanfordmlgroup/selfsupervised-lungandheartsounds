@@ -7,6 +7,7 @@ import librosa as lb # https://librosa.github.io/librosa/
 import soundfile as sf # https://pysoundfile.readthedocs.io/en/latest/
 import matplotlib.pyplot as plt
 from matplotlib.cbook import boxplot_stats
+from tqdm import tqdm
 
 from torch.utils.data import Dataset, DataLoader
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -63,7 +64,7 @@ class LungSoundsDataset(Dataset):
         return out
 
 
-def lungsounds_dataloader(batch_size,data_dir,label_file="B:\\Users\\psoni\\Projects\\lungsounds\\torchvggish\\data\\Respiratory_Sound_Database\\patient_diagnosis.csv",split_name=None):
+def lungsounds_dataloader(batch_size,data_dir,label_file="../data/disease_labels.csv",split_name=None):
     dataset=LungSoundsDataset(label_file=label_file, root=os.path.join(data_dir,split_name))
 
     return DataLoader(dataset,batch_size,shuffle=True)
@@ -91,14 +92,14 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
 
     return comp_len
 
-def process(data_path='../../data'):
+def process(data_path='../../data/data'):
     diag_csv = os.path.join(data_path,'patient_diagnosis.csv')
     diagnosis = pd.read_csv(diag_csv, names=['pId', 'diagnosis'])
     diagnosis['diagnosis']=diagnosis['diagnosis'].apply(diag_map)
 
     diagnosis.to_csv(os.path.join(os.getcwd(),'../data/disease_labels.csv'), index=False, header=["pt_id","label"])
     ds = diagnosis['diagnosis'].unique()
-    audio_text_loc = os.path.join(data_path,'raw')
+    audio_text_loc = os.path.join(data_path,'audio_and_txt_files')
     files = [s.split('.')[0] for s in os.listdir(path=audio_text_loc) if '.txt' in s]
     files_ = []
 
@@ -124,7 +125,7 @@ def process(data_path='../../data'):
         os.makedirs(path)
     i = 0  # iterator for file naming
 
-    for idx, row in files_df.iterrows():
+    for idx, row in tqdm(files_df.iterrows(), total=files_df.shape[0]):
         filename = row['filename']
         start = row['start']
         end = row['end']
@@ -144,7 +145,7 @@ def process(data_path='../../data'):
         n_filename = filename + '_' + str(i) + '.wav'
         path = '../data/processed/' + diag + '/' + n_filename
 
-        print('processing ' + n_filename + '...')
+       # print('processing ' + n_filename + '...')
 
         data, samplingrate = lb.load(aud_loc)
         sliced_data = slice_data(start=start, end=end, raw_data=data, sample_rate=samplingrate)
