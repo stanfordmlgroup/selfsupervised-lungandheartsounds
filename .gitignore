@@ -71,6 +71,10 @@ target/
 
 # Mypy cache
 .mypy_cache/
-/data/raw/
 /data.tar
+
 /disease/data/processed/*
+/data/audio_and_txt_files/
+/data/processed/Other/
+/data/processed/Healthy/
+/data/processed/COPD/
