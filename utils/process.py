@@ -7,7 +7,8 @@ import librosa as lb  # https://librosa.github.io/librosa/
 import soundfile as sf  # https://pysoundfile.readthedocs.io/en/latest/
 import file as fi
 import split as sp
-
+import labels as la
+import argparse
 
 # splices audio data to desired start, end timestamps
 def slice_data(start, end, raw_data, sample_rate):
@@ -27,25 +28,13 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
     if acquisition_mode == 1:  # ac mode is single channel which means it's 'mono'
         comp_len = samp_rate * time
     else:  # stereo
-        comp_len = (samp_rate * time)
+        comp_len = samp_rate * time
 
     return comp_len
 
 
-# processes raw data consisting of wavs and cycle timestamps
-def process(data_path='../data'):
-    processed_dir = os.path.join(data_path, 'processed')
-    if not os.path.exists(processed_dir):
-        os.makedirs(processed_dir)
-    # loads the diagnosis csv, applies a mapping to get labels, and saves the labels
-    diag_csv = os.path.join(data_path, 'patient_diagnosis.csv')
-    diagnosis = pd.read_csv(diag_csv, names=['pId', 'diagnosis'])
-    diagnosis['diagnosis'] = diagnosis['diagnosis'].apply(diag_map)
-    diagnosis.to_csv(os.path.join(processed_dir, 'disease_labels.csv'), index=False, header=["pt_id", "label"])
-    # find unique labels-->we will need this later
-    ds = diagnosis['diagnosis'].unique()
+def get_cycledf(audio_text_loc):
     # identify all cycle information files
-    audio_text_loc = os.path.join(data_path, 'audio_and_txt_files')
     files = [fi.split_path(s).split('.')[0] for s in fi.get_filenames(audio_text_loc, ["txt"])]
     files_ = []
     # create dataframe from information contained in wav file names
@@ -58,20 +47,52 @@ def process(data_path='../data'):
         df['ac_mode'] = f_features[3]
 
         files_.append(df)
-    # process the df
-    files_df = pd.concat(files_)
+
+    return files_
+
+
+def mergedf(cycle_info, diagnosis):
+    # process the dataframes and merge so that we have start and end info for each slice
+    files_df = pd.concat(cycle_info)
     files_df.reset_index()
     files_df['pId'] = files_df['pId'].astype('float64')
     files_df = pd.merge(files_df, diagnosis, on='pId')
-    # determine length info
+    return files_df
+
+
+def max_length(files_df):
     files_df['len_per_slice'] = files_df['end'].sub(files_df['start'], axis=0)
-    force_max_len = math.ceil(boxplot_stats(files_df['len_per_slice'])[0]['whishi'])
+    return math.ceil(boxplot_stats(files_df['len_per_slice'])[0]['whishi'])
+
+
+def process(data_path='../data'):
+    """
+    INPUT: A data dir where audio files and cycle info is stored in data_path/audio_txt_files
+    OUTPUTS: data_path/processed with each recording split into the respiratory cycles
+             disease_labels.csv: file with patient ids and their disease diagnoses mapped by Healthy, COPD, or Other
+             symptoms_labels.csv: file with respiratory cycle ids and presence of crackles and wheezes
+
+    The function parses through each of the txt files and filenames to identify start and end for each cycle. A good
+    clipping value is then calculated. Each slice from the raw audios is processed so that they are of uniform length by
+    cropping/padding as appropriate. Files are then saved.
+    """
+    processed_dir = os.path.join(data_path, 'processed')
+    fi.make_path(processed_dir)
+
+    diagnosis = la.process_diag_labels(data_path)
+    # find unique labels-->we will need this later
+    ds = diagnosis['diagnosis'].unique()
+
+    audio_text_loc = os.path.join(data_path, 'audio_and_txt_files')
+    files_df = mergedf(get_cycledf(audio_text_loc), diagnosis)
+
+    # determine a max length for clips
+    force_max_len = max_length(files_df)
 
     # make paths for the spliced files
     for d in ds:
         path = os.path.join(processed_dir, d)
-        if not os.path.exists(path):
-            os.makedirs(path)
+        fi.make_path(path)
 
     # for each original file we splice by timestamps, and save as well as constructing a label file for the symptoms
     i = 0  # iterator for file naming
@@ -90,7 +111,6 @@ def process(data_path='../data'):
             if force_max_len < end - start:
                 end = start + force_max_len
 
-            aud_loc = audio_text_loc + '/' + f + '.wav'
             # reset index for each original file
             if idx != 0:
                 if files_df.iloc[idx - 1]['filename'] == filename:
@@ -101,8 +121,7 @@ def process(data_path='../data'):
             n_filename = filename + '_' + str(i) + '.wav'
             path = os.path.join(processed_dir, diag, n_filename)
 
-            # print('processing ' + n_filename + '...')
-
+            aud_loc = audio_text_loc + '/' + filename + '.wav'
             data, samplingrate = lb.load(aud_loc)
             sliced_data = slice_data(start=start, end=end, raw_data=data, sample_rate=samplingrate)
 
@@ -116,20 +135,10 @@ def process(data_path='../data'):
             out.write(cycle + "," + str(crackles) + "," + str(wheezes) + "\n")
 
 
-# map function to generate labels from raw csv
-def diag_map(diag):
-    if diag == "Healthy":
-        return diag
-    if diag == "COPD":
-        return diag
-    else:
-        return diag.replace(diag, "Other")
-
 
 if __name__ == "__main__":
-    # splice files
-    process()
-    if not os.path.exists('../data/splits'):
-        os.makedirs('../data/splits')
-    # create splits based 30 tests of 10 patients each, OPTIONAL: provide a seed number for reproducibility.
-    sp.split('../data/processed', '../data/splits')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data', default='../data', help='data path')
+
+    process(parser.parse_args().data)
+
