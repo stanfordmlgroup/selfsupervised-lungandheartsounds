@@ -1,18 +1,22 @@
 # aihc-sum20-lung-sounds
 
-##Utility scripts & methods w/ relevant usage examples
-###process.py
+## Utility scripts & methods w/ relevant usage examples
+
+### process.py
 Provides functionality to take raw audio and text files and generate a processed dir (_path_/processed) with audio files spliced by respiratory cycle. Also generates disease_labels.csv (mapped disease diagnoses) and symptoms_labels.csv (presence of crackles/wheezes for each respiratory file)  
-####Running script from terminal
+
+#### Running script from terminal
 ```
 $ python process.py [--data "data directory"]
 ```
 DEAFULTS:
 
 data: /data/
-###split.py
+
+### split.py
 Creates train test splits. Each patient id is assigned to exactly  
-####Running script from terminal
+
+#### Running script from terminal
 ```
 $ python split.py [--data "data directory"] [--splits "desired location of splits"] [--seed "seed for random sampling"] [--distribution "dict of classes and desired number of test files from each class"]
 ```
@@ -28,11 +32,11 @@ distribution: {'COPD': 10, 'Healthy': 10, 'URTI': 3, 'Bronchiectasis': 2, 'Bronc
                              'Pneumonia': 2, 'LRTI': 1, 'Asthma': 0}
 <hr>
 
-###labels.py
+### labels.py
 Functions to handle label processing from raw and label retrieval
 <hr>
 
-###features.py
+### features.py
 Methods to extract numerical features from raw audio files.
 
 Currently implemented:
@@ -44,7 +48,8 @@ Currently implemented:
 5. MEL
 6. Contrast
 7. Tonnetz
-####Running script from terminal
+
+#### Running script from terminal
 ```
 $ python features.py [--file "example filename"]
 ```
@@ -61,33 +66,33 @@ a feature embedding frontend for audio classification models. The weights are po
 [1]  S. Hershey et al., ‘CNN Architectures for Large-Scale Audio Classification’,\
     in International Conference on Acoustics, Speech and Signal Processing (ICASSP),2017\
     Available: https://arxiv.org/abs/1609.09430, https://ai.google/research/pubs/pub45611
-####STFT
+#### STFT
 ```
 stft(filename): returns a 1025*x embedding, where x is the number of frames in the clip
 ```
-####MFCCS
+#### MFCCS
 ```
 mfccs(filename): returns a feature of length 40
 ```
-####Chroma
+#### Chroma
 ```
 chroma(filename): returns a feature of length 12
 ```
-####Mel
+#### Mel
 ```
 mel(filename): returns a feature of length 128
 ```
-####Contrast
+#### Contrast
 ```
 contrast(filename): returns a feature of length 7
 ```
-####Tonnetz
+#### Tonnetz
 ```
 tonnetz(filename): returns a feature of length 6
 ```
 <hr>
 
-###file.py
+### file.py
 General functions for dealing with file reading and manipulation
 
 
