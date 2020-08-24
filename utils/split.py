@@ -5,6 +5,7 @@ import pandas as pd
 import argparse
 import file as fi
 
+
 # create split files
 def split(input_path='../data', split_dir='../data/splits', seed=252,
           distribution_dict=None):
@@ -46,19 +47,20 @@ def split(input_path='../data', split_dir='../data/splits', seed=252,
             train.write(str(pId) + "\n")
         print("Train samples: " + str(len(train_list)))
 
+
 if __name__ == "__main__":
     # create splits based 30 tests of 10 patients each, OPTIONAL: provide a seed number for reproducibility and
     # custom split dictionary with keys as strings matching raw diagnoses and values equaling desired number of that
     # class in test set.
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default='../data', help='data path')
-    parser.add_argument('--split',default='../data/splits', help='location of output files')
+    parser.add_argument('--split', default='../data/splits', help='location of output files')
     parser.add_argument('--seed', default=252, help='seed for sampling')
     parser.add_argument('--distribution', default=None, help='dict containing desired test samples from each '
                                                              'diagnosis class')
     # distribution_dict = {'COPD': 10, 'Healthy': 10, 'URTI': 3, 'Bronchiectasis': 2, 'Bronchiolitis': 2,
     # 'Pneumonia': 2, 'LRTI': 1, 'Asthma': 0}
-    args=parser.parse_args()
+    args = parser.parse_args()
 
     fi.make_path(args.split)
-    split(args.data, args.split, args.seed,args.distribution)
+    split(args.data, args.split, args.seed, args.distribution)

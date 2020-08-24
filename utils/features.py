@@ -90,4 +90,3 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--file', default=os.path.join(os.getcwd(),'../data/audio_and_txt_files/101_1b1_Al_sc_Meditron.wav'), help='example filename')
     example(parser.parse_args())
-

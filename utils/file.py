@@ -27,6 +27,7 @@ def get_filenames(search_dir, type_list):
         file_list.extend(glob(os.path.join(search_dir, "*." + type), recursive=True))
     return file_list
 
+
 def make_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
