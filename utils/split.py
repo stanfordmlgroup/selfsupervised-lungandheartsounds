@@ -8,7 +8,7 @@ import file as fi
 # create split files
 def split(input_path='../data', split_dir='../data/splits', seed=252,
           distribution_dict=None):
-    if distribution_dict is None:
+    if distribution_dict is None or not distribution_dict:
         distribution_dict = {'COPD': 10, 'Healthy': 10, 'URTI': 3, 'Bronchiectasis': 2, 'Bronchiolitis': 2,
                              'Pneumonia': 2, 'LRTI': 1, 'Asthma': 0}
     random.seed(seed)

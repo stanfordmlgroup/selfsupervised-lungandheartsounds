@@ -6,9 +6,9 @@ from matplotlib.cbook import boxplot_stats
 import librosa as lb  # https://librosa.github.io/librosa/
 import soundfile as sf  # https://pysoundfile.readthedocs.io/en/latest/
 import file as fi
-import split as sp
 import labels as la
 import argparse
+
 
 # splices audio data to desired start, end timestamps
 def slice_data(start, end, raw_data, sample_rate):
@@ -33,6 +33,8 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
     return comp_len
 
 
+# creates a list (files_) containting information for each respiratory cycle for a given wav file. Each element of
+# the list is a dataframe containing the filename, patient ID, start, end, crackles, wheezes, and acquisition mode
 def get_cycledf(audio_text_loc):
     # identify all cycle information files
     files = [fi.split_path(s).split('.')[0] for s in fi.get_filenames(audio_text_loc, ["txt"])]
@@ -51,6 +53,8 @@ def get_cycledf(audio_text_loc):
     return files_
 
 
+# first converts cycle list to a df. Then merges the diagnosis info with the cycle info so each cycle (row) contains
+# the appropriate diagnosis.
 def mergedf(cycle_info, diagnosis):
     # process the dataframes and merge so that we have start and end info for each slice
     files_df = pd.concat(cycle_info)
@@ -65,7 +69,7 @@ def max_length(files_df):
     return math.ceil(boxplot_stats(files_df['len_per_slice'])[0]['whishi'])
 
 
-def process(data_path='../data'):
+def process(data_path='../data', labels_only=False):
     """
     INPUT: A data dir where audio files and cycle info is stored in data_path/audio_txt_files
     OUTPUTS: data_path/processed with each recording split into the respiratory cycles
@@ -85,18 +89,18 @@ def process(data_path='../data'):
 
     audio_text_loc = os.path.join(data_path, 'audio_and_txt_files')
     files_df = mergedf(get_cycledf(audio_text_loc), diagnosis)
+    if not labels_only:
+        # determine a max length for clips
+        force_max_len = max_length(files_df)
 
-    # determine a max length for clips
-    force_max_len = max_length(files_df)
-
-    # make paths for the spliced files
-    for d in ds:
-        path = os.path.join(processed_dir, d)
-        fi.make_path(path)
+        # make paths for the spliced files
+        for d in ds:
+            path = os.path.join(processed_dir, d)
+            fi.make_path(path)
 
     # for each original file we splice by timestamps, and save as well as constructing a label file for the symptoms
     i = 0  # iterator for file naming
-    with open(os.path.join(processed_dir, 'symptoms_labels.csv'), "a") as out:
+    with open(os.path.join(processed_dir, 'symptoms_labels.csv'), "w") as out:
         out.write("cycle,crackles,wheezes\n")
 
         for idx, row in tqdm(files_df.iterrows(), total=files_df.shape[0]):
@@ -106,10 +110,10 @@ def process(data_path='../data'):
             diag = row['diagnosis']
             crackles = row['crackles']
             wheezes = row['wheezes']
-
-            # check len and force to 6 sec if more than that
-            if force_max_len < end - start:
-                end = start + force_max_len
+            if not labels_only:
+                # check len and force to 6 sec if more than that
+                if force_max_len < end - start:
+                    end = start + force_max_len
 
             # reset index for each original file
             if idx != 0:
@@ -119,26 +123,27 @@ def process(data_path='../data'):
                     i = 0
 
             n_filename = filename + '_' + str(i) + '.wav'
-            path = os.path.join(processed_dir, diag, n_filename)
 
-            aud_loc = audio_text_loc + '/' + filename + '.wav'
-            data, samplingrate = lb.load(aud_loc)
-            sliced_data = slice_data(start=start, end=end, raw_data=data, sample_rate=samplingrate)
+            if not labels_only:
+                path = os.path.join(processed_dir, diag, n_filename)
 
-            # pad audio if < forced_max_len
-            a_len = compute_len(samp_rate=samplingrate, time=force_max_len, acquisition_mode=row['ac_mode'] == 'sc')
-            padded_data = lb.util.pad_center(sliced_data, a_len)
+                aud_loc = audio_text_loc + '/' + filename + '.wav'
+                data, samplingrate = lb.load(aud_loc)
+                sliced_data = slice_data(start=start, end=end, raw_data=data, sample_rate=samplingrate)
 
-            sf.write(file=path, data=padded_data, samplerate=samplingrate)
+                # pad audio if < forced_max_len
+                a_len = compute_len(samp_rate=samplingrate, time=force_max_len, acquisition_mode=row['ac_mode'] == 'sc')
+                padded_data = lb.util.pad_center(sliced_data, a_len)
 
-            cycle = n_filename[:-4]
+                sf.write(file=path, data=padded_data, samplerate=samplingrate)
+
+            cycle = n_filename.split(".")[0]
             out.write(cycle + "," + str(crackles) + "," + str(wheezes) + "\n")
-
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default='../data', help='data path')
-
-    process(parser.parse_args().data)
-
+    parser.add_argument("--labels_only", default=False, help="if True does not process and only creates label files.")
+    args=parser.parse_args()
+    process(args.data, args.labels_only)

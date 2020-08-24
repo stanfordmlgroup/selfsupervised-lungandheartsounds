@@ -5,11 +5,12 @@
 Provides functionality to take raw audio and text files and generate a processed dir (_path_/processed) with audio files spliced by respiratory cycle. Also generates disease_labels.csv (mapped disease diagnoses) and symptoms_labels.csv (presence of crackles/wheezes for each respiratory file)  
 ####Running script from terminal
 ```
-$ python process.py [--data "data directory"]
+$ python process.py [--data "data directory"] [--labels_only "if True, doesn't process only makes labels"] 
 ```
-DEAFULTS:
+DEFAULTS:
 
 data: /data/
+labels_only: False
 ###split.py
 Creates train test splits. Each patient id is assigned to exactly  
 ####Running script from terminal
