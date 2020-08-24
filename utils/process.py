@@ -97,7 +97,7 @@ def process(data_path='../data'):
     # for each original file we splice by timestamps, and save as well as constructing a label file for the symptoms
     i = 0  # iterator for file naming
     with open(os.path.join(processed_dir, 'symptoms_labels.csv'), "a") as out:
-        out.write("cycle,crackles,wheezes\n")
+        out.write("ID,cycle,crackles,wheezes\n")
 
         for idx, row in tqdm(files_df.iterrows(), total=files_df.shape[0]):
             filename = row['filename']
@@ -132,7 +132,8 @@ def process(data_path='../data'):
             sf.write(file=path, data=padded_data, samplerate=samplingrate)
 
             cycle = n_filename[:-4]
-            out.write(cycle + "," + str(crackles) + "," + str(wheezes) + "\n")
+            ID = cycle.split('_')[0]
+            out.write(f'{ID},{cycle},{str(crackles)},{str(wheezes)}\n')
 
 
 
