@@ -68,23 +68,23 @@ stft(filename): returns a 1025*x embedding, where x is the number of frames in t
 ```
 #### MFCCS
 ```
-mfccs(filename): returns a feature of length 40
+mfccs(filename): returns a feature of length x*40, where x is the number of frames in the clip
 ```
 #### Chroma
 ```
-chroma(filename): returns a feature of length 12
+chroma(filename): returns a feature of length x*12, where x is the number of frames in the clip
 ```
 #### Mel
 ```
-mel(filename): returns a feature of length 128
+mel(filename): returns a feature of length x*128, where x is the number of frames in the clip
 ```
 #### Contrast
 ```
-contrast(filename): returns a feature of length 7
+contrast(filename): returns a feature of length x*7, where x is the number of frames in the clip
 ```
 #### Tonnetz
 ```
-tonnetz(filename): returns a feature of length 6
+tonnetz(filename): returns a feature of length x*6, where x is the number of frames in the clip
 ```
 <hr>
 

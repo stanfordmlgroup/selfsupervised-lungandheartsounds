@@ -35,7 +35,7 @@ def mfccs(file_name=None):
         _, sample_rate = sf.read(file_name, dtype='float32')
     x = preprocess(file_name)
     # mfcc (mel-frequency cepstrum)
-    mfccs = np.mean(librosa.feature.mfcc(y=x, sr=sample_rate, n_mfcc=40).T, axis=0)
+    mfccs = librosa.feature.mfcc(y=x, sr=sample_rate, n_mfcc=40).T
     return mfccs
 
 
@@ -44,7 +44,7 @@ def chroma(file_name=None):
         _, sample_rate = sf.read(file_name, dtype='float32')
     stft_in = stft(file_name)
     # chroma
-    chroma = np.mean(librosa.feature.chroma_stft(S=stft_in, sr=sample_rate).T, axis=0)
+    chroma = librosa.feature.chroma_stft(S=stft_in, sr=sample_rate).T
     return chroma
 
 
@@ -53,7 +53,7 @@ def mel(file_name=None):
         _, sample_rate = sf.read(file_name, dtype='float32')
     x = preprocess(file_name)
     # melspectrogram
-    mel = np.mean(librosa.feature.melspectrogram(x, sr=sample_rate).T, axis=0)
+    mel = librosa.feature.melspectrogram(x, sr=sample_rate).T
     return mel
 
 
@@ -62,7 +62,7 @@ def contrast(file_name=None):
         _, sample_rate = sf.read(file_name, dtype='float32')
     stft_in= stft(file_name)
     # spectral contrast
-    contrast = np.mean(librosa.feature.spectral_contrast(S=stft_in, sr=sample_rate).T, axis=0)
+    contrast = librosa.feature.spectral_contrast(S=stft_in, sr=sample_rate).T
     return contrast
 
 
@@ -70,7 +70,7 @@ def tonnetz(file_name=None):
     if file_name:
         _, sample_rate = sf.read(file_name, dtype='float32')
     x = preprocess(file_name)
-    tonnetz = np.mean(librosa.feature.tonnetz(y=librosa.effects.harmonic(x), sr=sample_rate).T, axis=0)
+    tonnetz = librosa.feature.tonnetz(y=librosa.effects.harmonic(x), sr=sample_rate).T
     return tonnetz
 
 def example(args):
