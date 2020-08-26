@@ -20,6 +20,11 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
+
 
 class SymptomDataset(Dataset):
     def __init__(self, label_file, base_dir, split="train", transform=None):
@@ -93,27 +98,27 @@ class CNN(torch.nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         self.cnn_layers = Sequential(
-            Conv2d(1, 128, kernel_size=3, stride=2, padding=1),
+            Conv2d(1, 128, kernel_size=[7,11], stride=2, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(128, 256, kernel_size=2, stride=2, padding=1),
+            Conv2d(128, 256, kernel_size=5, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(256, 256, kernel_size=1, stride=2, padding=1),
-            Conv2d(256, 256, kernel_size=2, stride=2, padding=1),
+            Conv2d(256, 256, kernel_size=1, padding=1),
+            Conv2d(256, 256, kernel_size=3, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(256, 512, kernel_size=1, stride=2, padding=1),
-            Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
+            Conv2d(256, 512, kernel_size=1, padding=1),
+            Conv2d(512, 512, kernel_size=3, padding=1),
             ReLU(inplace=True),
-            Conv2d(512, 512, kernel_size=1, stride=2, padding=1),
-            Conv2d(512, 512, kernel_size=2, stride=2, padding=1),
+            Conv2d(512, 512, kernel_size=1, padding=1),
+            Conv2d(512, 512, kernel_size=3, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
         )
 
         self.linear_layers = Sequential(
-            Linear(512, 256), ReLU(inplace=True), Dropout(0.5), Linear(256, 4), ReLU(inplace=True), Linear(4, 4)
+            Linear(30720, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True), Linear(512, 4)
         )
 
     def forward(self, x):
@@ -130,8 +135,9 @@ def train(epoch, arch, model, loader, optimizer, device):
     y_pred = []
 
     for i, data in enumerate(loader):
+        print(i)
         X, y = data
-        X, y = X.view(128, 1, 8, 16).to(device), y.to(device)
+        X, y = X.view(128, 1, 259, 128).to(device), y.to(device)
 
         optimizer.zero_grad()
         if arch == "CNN":
