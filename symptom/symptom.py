@@ -160,7 +160,7 @@ def test(arch, model, loader, device):
 
     for i, data in enumerate(loader):
         X, y = data
-        X, y = X.view(128, 1, 8, 16).to(device), y.to(device)
+        X, y = X.view(128, 1, 259, 128).to(device), y.to(device)
 
         if arch == "CNN":
             output = model(X)
@@ -241,11 +241,12 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="train", choices={"train", "test"})
     parser.add_argument("--architecture", type=str, default="CNN", choices={"CNN"})
     parser.add_argument("--log_dir", type=str, default=None)
+    parser.add_argument("--data", type=str, default="/../data")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
-    base_dir = os.getcwd() + "/../data"
+    base_dir = os.getcwd() + args.data
     log_dir = args.log_dir
 
     if args.mode == "train":
