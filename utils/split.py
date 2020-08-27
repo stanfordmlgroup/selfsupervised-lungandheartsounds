@@ -6,13 +6,14 @@ import argparse
 import file as fi
 
 
-# create split files
 def split(input_path='../data', split_dir='../data/splits', seed=252,
           distribution_dict=None):
+    """create split files"""
     if distribution_dict is None or not distribution_dict:
         distribution_dict = {'COPD': 10, 'Healthy': 10, 'URTI': 3, 'Bronchiectasis': 2, 'Bronchiolitis': 2,
                              'Pneumonia': 2, 'LRTI': 1, 'Asthma': 0}
-    random.seed(seed)
+    if seed:
+        random.seed(seed)
     # load diagnosis cv and extract unqiue diagnoses
     diag_csv = os.path.join(input_path, 'patient_diagnosis.csv')
     diagnosis = pd.read_csv(diag_csv, names=['pId', 'diagnosis'])

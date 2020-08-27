@@ -10,8 +10,8 @@ import labels as la
 import argparse
 
 
-# splices audio data to desired start, end timestamps
 def slice_data(start, end, raw_data, sample_rate):
+    """splices audio data to desired start, end timestamps"""
     max_ind = len(raw_data)
     start_ind = min(int(start * sample_rate), max_ind)
     end_ind = min(int(end * sample_rate), max_ind)
@@ -20,10 +20,11 @@ def slice_data(start, end, raw_data, sample_rate):
 
 def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
     """Computes the supposed length of sliced data
-        samp_size = sample size from the data
-        samp_rate = sampling rate. by default since we're working on 24-bit files, we'll use 96kHz
-        time = length of time for the audio file. by default we'll use the max we have which is 5.48
-        acquisition_mode = either mono or stereo. 0 for mono, 1 for stereo
+
+    samp_size = sample size from the data
+    samp_rate = sampling rate. by default since we're working on 24-bit files, we'll use 96kHz
+    time = length of time for the audio file. by default we'll use the max we have which is 5.48
+    acquisition_mode = either mono or stereo. 0 for mono, 1 for stereo
     """
     if acquisition_mode == 1:  # ac mode is single channel which means it's 'mono'
         comp_len = samp_rate * time
@@ -33,10 +34,12 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
     return comp_len
 
 
-# creates a list (files_) containting information for each respiratory cycle for a given wav file. Each element of
-# the list is a dataframe containing the filename, patient ID, start, end, crackles, wheezes, and acquisition mode
 def get_cycledf(audio_text_loc):
-    # identify all cycle information files
+    """identify all cycle information files
+
+    creates a list (files_) containting information for each respiratory cycle for a given wav file. Each element of
+    the list is a dataframe containing the filename, patient ID, start, end, crackles, wheezes, and acquisition mode
+    """
     files = [fi.split_path(s).split('.')[0] for s in fi.get_filenames(audio_text_loc, ["txt"])]
     files_ = []
     # create dataframe from information contained in wav file names
@@ -53,10 +56,12 @@ def get_cycledf(audio_text_loc):
     return files_
 
 
-# first converts cycle list to a df. Then merges the diagnosis info with the cycle info so each cycle (row) contains
-# the appropriate diagnosis.
 def mergedf(cycle_info, diagnosis):
-    # process the dataframes and merge so that we have start and end info for each slice
+    """process the dataframes and merge so that we have start and end info for each slice
+
+    first converts cycle list to a df. Then merges the diagnosis info with the cycle info so each cycle (row) contains
+    the appropriate diagnosis.
+    """
     files_df = pd.concat(cycle_info)
     files_df.reset_index()
     files_df['pId'] = files_df['pId'].astype('float64')
@@ -70,7 +75,8 @@ def max_length(files_df):
 
 
 def process(data_path='../data', labels_only=False):
-    """
+    """Process the raw wavs to get each slice
+
     INPUT: A data dir where audio files and cycle info is stored in data_path/audio_txt_files
     OUTPUTS: data_path/processed with each recording split into the respiratory cycles
              disease_labels.csv: file with patient ids and their disease diagnoses mapped by Healthy, COPD, or Other
@@ -145,5 +151,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', default='../data', help='data path')
     parser.add_argument("--labels_only", default=False, help="if True does not process and only creates label files.")
-    args=parser.parse_args()
+    args = parser.parse_args()
     process(args.data, args.labels_only)
