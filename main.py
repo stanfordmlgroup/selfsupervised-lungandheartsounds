@@ -3,7 +3,7 @@ import os
 import sys
 
 #TODO import more stuff
-import disease
+from disease import disease
 import symptom
 
 # Entry Script for Lung Sounds

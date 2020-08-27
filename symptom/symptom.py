@@ -1,183 +1,269 @@
-import wave
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+import time
+import numpy as np
+import pandas as pd
+import datetime
+import argparse
 
-from keras.utils.vis_utils import plot_model
-#from IPython.display import Image
-from sklearn.metrics import classification_report, confusion_matrix
+import sys
 
-#Keras implementation
-from keras import Sequential
-from keras import optimizers
-from keras import backend as K
-from keras.layers import Conv2D, Dense, Activation, Dropout, MaxPool2D, Flatten, LeakyReLU
-import tensorflow as tf
+sys.path.append("../utils")
 
+import torch
+import torch.nn.functional as F
+from torch.nn import Sequential, Linear, ReLU, MSELoss, Conv2d, LeakyReLU, MaxPool2d, Dropout
+from torch.utils.data import Dataset, DataLoader
 
-#Import helper functions:
-import mfcc
-import data_pipeline as dp
+from features import mel
 
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.autograd.set_detect_anomaly(True)
 
-def main():    
-    # Load in input data
-    # TODO: replace path to data
-    df_no_diagnosis = pd.read_csv('../data/demographic_info.txt', names = 
-                     ['Patient number', 'Age', 'Sex' , 'Adult BMI (kg/m2)', 'Child Weight (kg)' , 'Child Height (cm)'],
-                     delimiter = ' ')
-    # Load in outputs
-    diagnosis = pd.read_csv('../data/patient_diagnosis.csv', names = ['Patient number', 'Diagnosis'])
- 
-    print('collecting files')
-    root = '../data/data/audio_and_txt_files/'
-    filenames = [s.split('.')[0] for s in os.listdir(path = root) if '.txt' in s]
-
-    # Get annotations
-    i_list = []
-    rec_annotations = []
-    rec_annotations_dict = {}
-    for s in filenames:
-        (i,a) = Extract_Annotation_Data(s, root)
-        i_list.append(i)
-        rec_annotations.append(a)
-        rec_annotations_dict[s] = a
-        break
-    recording_info = pd.concat(i_list, axis = 0)
-    recording_info.head()
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
+# TODO: K FOLD CROSS VAL
 
 
-    no_label_list = []
-    crack_list = []
-    wheeze_list = []
-    both_sym_list = []
-    filename_list = []
-    for f in filenames:
-        d = rec_annotations_dict[f]
-        no_labels = len(d[(d['Crackles'] == 0) & (d['Wheezes'] == 0)].index)
-        n_crackles = len(d[(d['Crackles'] == 1) & (d['Wheezes'] == 0)].index)
-        n_wheezes = len(d[(d['Crackles'] == 0) & (d['Wheezes'] == 1)].index)
-        both_sym = len(d[(d['Crackles'] == 1) & (d['Wheezes'] == 1)].index)
-        no_label_list.append(no_labels)
-        crack_list.append(n_crackles)
-        wheeze_list.append(n_wheezes)
-        both_sym_list.append(both_sym)
-        filename_list.append(f)
+class SymptomDataset(Dataset):
+    def __init__(self, label_file, base_dir, split="train", transform=None):
+        df = pd.read_csv(label_file)
+        splits_dir = os.path.join(base_dir, "splits")
 
-    file_label_df = pd.DataFrame(data = {'filename':filename_list, 'no label':no_label_list, 'crackles only':crack_list, 'wheezes only':wheeze_list, 'crackles and wheezees':both_sym_list})
+        if split == "train":
+            df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
+        elif split == "test":
+            df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
+        else:
+            raise Exception("Invalid split value. Must be train or test.")
 
-    print('extracting files')
-    target_sample_rate = 22000 
-    sample_length_seconds = 5
-    sample_dict = dp.extract_all_training_samples(filenames, rec_annotations_dict, root, target_sample_rate, sample_length_seconds) #sample rate lowered to meet memory constraints
-    training_clips = sample_dict[0]
-    test_clips = sample_dict[1]
+        self.labels = df
+        self.base_dir = base_dir
 
+    def __len__(self):
+        return len(self.labels)
 
-    [none_train, c_train, w_train, c_w_train] = [training_clips['none'], training_clips['crackles'], training_clips['wheezes'], training_clips['both']]
-    [none_test, c_test, w_test,c_w_test] =  [test_clips['none'], test_clips['crackles'], test_clips['wheezes'], test_clips['both']]
+    def __getitem__(self, idx):
+        row = self.labels.iloc[idx]
+        cycle = row["cycle"]
+        filename = cycle + ".wav"
+        # Read in the sound file
+        dirs = ["COPD", "Healthy", "Other"]
+        parent_path = self.base_dir + "/processed/"
 
+        # Get correpsonding processed audio file (using Mel)
+        X = None
+        for d in dirs:
+            file_path = parent_path + d + "/" + filename
+            if os.path.isfile(file_path):
+                X = torch.Tensor(mel(file_path))
+                break
+        if X is None:
+            raise Exception(f"Could not find filename {filename} in {parent_path}.")
 
-    np.random.shuffle(none_train)
-    np.random.shuffle(c_train)
-    np.random.shuffle(w_train)
-    np.random.shuffle(c_w_train)
+        # Get symptom result
+        y = self.get_class_val(row)
+        return X, y
 
-    #Data pipeline objects
-    print('preparing data')
-    train_gen = data_generator([none_train, c_train, w_train, c_w_train], [1,1,1,1])
-    test_gen = feed_all([none_test, c_test, w_test,c_w_test])
+    def get_split(self, df, split_file_path):
+        # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
+        # Returns a DataFrame of only samples with Patient IDs contained in the split.
+        IDs = set()
+        with open(split_file_path, "r") as f:
+            IDs = set([line.strip() for line in f])
+        return df[~df.ID.isin(IDs)]
 
-    print('preparing model')
-    model = None
-    path = 'symptom_model.h5'
-    if os.path.exists(path)
-        print('loading model')
-        model = keras.models.load_model(path)
-    else:
-        print('training model')
-        model = get_model(sample_height, sample_width)
-        # plot_model(model, show_shapes=True, show_layer_names = True)
-        # Image(filename='model.png')
-        stats = model.fit(x = train_gen.generate_keras(batch_size), 
-                            steps_per_epoch = train_gen.n_available_samples() // batch_size,
-                            validation_data = test_gen.generate_keras(batch_size),
-                            validation_steps = test_gen.n_available_samples() // batch_size, 
-                            epochs = n_epochs)
-        print('saving model')
-        model.save(path)
-
-    assert model
-
-    plt.figure(figsize = (15,5))
-    plt.subplot(1,2,1)
-    plt.title('Accuracy')
-    plt.plot(stats.history['acc'], label = 'training acc')
-    plt.plot(stats.history['val_acc'], label = 'validation acc')
-    plt.legend()
-    plt.subplot(1,2,2)
-    plt.plot(stats.history['loss'], label = 'training loss')
-    plt.plot(stats.history['val_loss'], label = 'validation loss')
-    plt.legend()
-    plt.title('Loss')
-
-    test_set = test_gen.generate_keras(test_gen.n_available_samples()).__next__()
-    predictions = model.predict(test_set[0])
-    predictions = np.argmax(predictions, axis = 1)
-    labels = np.argmax(test_set[1], axis = 1)
-
-    print(classification_report(labels, predictions, target_names = ['none','crackles','wheezes','both']))
-    print(confusion_matrix(labels, predictions))
-
-    model.save('symptom_model.h5')
+    def get_class_val(self, row):
+        # Takes in a single row in a DataFrame, return an Int.
+        # 0: None, 1: Wheeze, 2: Crackle, 3: Both
+        wheeze = row["wheezes"]
+        crackle = row["crackles"]
+        if wheeze and crackle:
+            return 3
+        elif crackle:
+            return 2
+        elif wheeze:
+            return 1
+        else:
+            return 0
 
 
-def Extract_Annotation_Data(file_name, root):
-    tokens = file_name.split('_')
-    recording_info = pd.DataFrame(data = [tokens], columns = ['Patient number', 'Recording index', 'Chest location','Acquisition mode','Recording equipment'])
-    recording_annotations = pd.read_csv(os.path.join(root, file_name + '.txt'), names = ['Start', 'End', 'Crackles', 'Wheezes'], delimiter= '\t')
-    return (recording_info, recording_annotations)
+def get_data_loader(label_file, base_dir, batch_size=128, split="train"):
+    dataset = SymptomDataset(label_file, base_dir, split=split)
+    return DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
 
 
+class CNN(torch.nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.cnn_layers = Sequential(
+            Conv2d(1, 128, kernel_size=[7,11], stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+            Conv2d(128, 256, kernel_size=5, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+            Conv2d(256, 256, kernel_size=1, padding=1),
+            Conv2d(256, 256, kernel_size=3, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+            Conv2d(256, 512, kernel_size=1, padding=1),
+            Conv2d(512, 512, kernel_size=3, padding=1),
+            ReLU(inplace=True),
+            Conv2d(512, 512, kernel_size=1, padding=1),
+            Conv2d(512, 512, kernel_size=3, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+        )
 
-def get_model(sample_height, sample_width, batch_size=128, n_epochs=15):
+        self.linear_layers = Sequential(
+            Linear(30720, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True), Linear(512, 4)
+        )
 
-    K.clear_session()
-
-    model = Sequential()
-    model.add(Conv2D(128, [7,11], strides = [2,2], padding = 'SAME', input_shape = (sample_height, sample_width, 1)))
-    model.add(LeakyReLU(alpha = 0.1))
-    model.add(MaxPool2D(padding = 'SAME'))
-
-    model.add(Conv2D(256, [5,5], padding = 'SAME'))
-    model.add(LeakyReLU(alpha = 0.1))
-    model.add(MaxPool2D(padding = 'SAME'))
-
-    model.add(Conv2D(256, [1,1], padding = 'SAME'))
-    model.add(Conv2D(256, [3,3], padding = 'SAME'))
-    model.add(LeakyReLU(alpha = 0.1))
-    model.add(MaxPool2D(padding = 'SAME'))
-
-    model.add(Conv2D(512, [1,1], padding = 'SAME'))
-    model.add(Conv2D(512, [3,3], padding = 'SAME',activation = 'relu'))
-    model.add(Conv2D(512, [1,1], padding = 'SAME'))
-    model.add(Conv2D(512, [3,3], padding = 'SAME', activation = 'relu'))
-    model.add(MaxPool2D(padding = 'SAME'))
-    model.add(Flatten())
-
-    model.add(Dense(4096, activation = 'relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(512, activation = 'relu'))
-    model.add(Dense(4, activation = 'softmax'))
-
-    opt = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.00, amsgrad=False)
-
-    model.compile(optimizer =  opt , loss = 'categorical_crossentropy', metrics = ['acc'])
-    return model
+    def forward(self, x):
+        x = self.cnn_layers(x)
+        x = x.view(x.size(0), -1)
+        x = self.linear_layers(x)
+        return x
 
 
-if __name__=="__main__":
-    main()
+def train(epoch, arch, model, loader, optimizer, device):
+    model.train()
 
+    y_true = []
+    y_pred = []
+
+    for i, data in enumerate(loader):
+        print(i)
+        X, y = data
+        X, y = X.view(128, 1, 259, 128).to(device), y.to(device)
+
+        optimizer.zero_grad()
+        if arch == "CNN":
+            output = model(X)
+        loss = F.cross_entropy(output, y)
+        y_true.extend(y.tolist())
+        y_pred.extend(output.tolist())
+        loss.backward()
+        optimizer.step()
+
+    return loss, y_true, y_pred
+
+
+@torch.no_grad()
+def test(arch, model, loader, device):
+    model.eval()
+
+    y_true = []
+    y_pred = []
+
+    for i, data in enumerate(loader):
+        X, y = data
+        X, y = X.view(128, 1, 259, 128).to(device), y.to(device)
+
+        if arch == "CNN":
+            output = model(X)
+
+        loss = F.cross_entropy(output, y)
+        y_true.extend(y.tolist())
+        y_pred.extend(output.tolist())
+
+    return loss, y_true, y_pred
+
+
+def save_weights(model, weight_dir):
+    torch.save(model.state_dict(), weight_dir)
+
+
+def get_accuracy(labels, preds):
+    return sum([np.argmax(pred) == label for label, pred in zip(labels, preds)]) / len(labels)
+
+
+def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
+    log_file = os.path.join(log_dir, f"train_log.txt")
+
+    num_epochs = 500
+    batch_size = 128
+    learning_rate = 0.001
+    label_file = os.path.join(base_dir, "processed", "symptoms_labels.csv")
+
+    train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size)
+    test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, split="test")
+
+    if not os.path.exists(os.path.join(log_dir, "params.txt")):
+        with open(os.path.join(log_dir, "params.txt"), "w") as f:
+            f.write(f"Model: {architecture}\n")
+            f.write(f"Epochs: {num_epochs}\n")
+            f.write(f"Batch size: {batch_size}\n")
+            f.write(f"Learning rate: {learning_rate}")
+
+    if architecture == "CNN":
+        model = CNN().to(device)
+
+    model.to(device)
+    best_train_loss = 999
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    for epoch in range(1, num_epochs + 1):
+        start = time.time()
+        train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
+        if train_loss < best_train_loss:
+            save_weights(model, os.path.join(log_dir, "best_weights.pt"))
+            best_train_loss = train_loss
+        elapsed = time.time() - start
+        print("Epoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+        print("\tTrain CE: {:.7f}".format(train_loss))
+        ce, test_true, test_pred = test(architecture, model, test_loader, device)
+        train_accuracy = get_accuracy(train_true, train_pred)
+        test_accuracy = get_accuracy(test_true, test_pred)
+        print("\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Epoch: {:03d}\tLoss: {:.7f}\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(
+                    epoch, train_loss, train_accuracy, test_accuracy
+                )
+            )
+
+    if test_mode:
+        test_file = os.path.join(log_dir, f"test_results.txt")
+        model.load_state_dict(torch.load(os.path.join(log_dir, "best_weights.pt")))
+        ce, y_true, y_pred = test(architecture, model, test_loader, device)
+        print("Test CE: {:.7f}".format(ce))
+        with open(test_file, "a+") as out:
+            out.write("{}\t{:.7f}\n".format(seed, ce))
+
+    return best_train_loss
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="train", choices={"train", "test"})
+    parser.add_argument("--architecture", type=str, default="CNN", choices={"CNN"})
+    parser.add_argument("--log_dir", type=str, default=None)
+    parser.add_argument("--data", type=str, default="/../data")
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
+    base_dir = os.getcwd() + args.data
+    log_dir = args.log_dir
+
+    if args.mode == "train":
+        if log_dir is None:
+            now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            log_dir = os.path.join(base_dir, "logs", now)
+        else:
+            log_dir = os.path.join(base_dir, "logs", log_dir)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        train_(args.architecture, base_dir, device, log_dir)
+    elif args.mode == "test":
+        for seed in np.random.randint(0, 1000, size=3):
+            print("seed:", seed)
+            log_dir = os.path.join(base_dir, "logs", f"test_{seed}")
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
+            train_(args.architecture, base_dir, device, log_dir, seed, test_mode=True)
