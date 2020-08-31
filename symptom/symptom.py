@@ -177,7 +177,7 @@ def get_accuracy(labels, preds):
     return sum([np.argmax(pred) == label for label, pred in zip(labels, preds)]) / len(labels)
 
 
-def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
+def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False, weights=None):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
     n_splits = 5
@@ -277,7 +277,8 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
 
     if test_mode:
         test_file = os.path.join(log_dir, f"test_results.txt")
-        model.load_state_dict(torch.load(os.path.join(log_dir, "best_weights.pt")))
+        # model.load_state_dict(torch.load(os.path.join(log_dir, "best_weights.pt")))
+        model.load_state_dict(torch.load(weights))
         ce, y_true, y_pred = test(architecture, model, whole_test_loader, device)
         print("Test CE: {:.7f}".format(ce))
         with open(test_file, "a+") as out:
@@ -291,6 +292,7 @@ if __name__ == "__main__":
     parser.add_argument("--architecture", type=str, default="CNN", choices={"CNN"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="/../data")
+    parser.add_argument("--weights", type=str, default="best_weights.pt")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -315,4 +317,4 @@ if __name__ == "__main__":
                 os.makedirs(log_dir)
             np.random.seed(seed)
             torch.manual_seed(seed)
-            train_(args.architecture, base_dir, device, log_dir, seed, test_mode=True)
+            train_(args.architecture, base_dir, device, log_dir, seed, test_mode=True, weights=args.weights)
