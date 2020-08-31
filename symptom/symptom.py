@@ -14,6 +14,9 @@ import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU, MSELoss, Conv2d, LeakyReLU, MaxPool2d, Dropout
 from torch.utils.data import Dataset, DataLoader
 
+
+from sklearn.model_selection import KFold
+
 from features import mel
 
 torch.backends.cudnn.deterministic = True
@@ -27,16 +30,17 @@ torch.autograd.set_detect_anomaly(True)
 
 
 class SymptomDataset(Dataset):
-    def __init__(self, label_file, base_dir, split="train", transform=None):
-        df = pd.read_csv(label_file)
-        splits_dir = os.path.join(base_dir, "splits")
+    def __init__(self, label_file, base_dir, split="train", transform=None, df=None):
+        if df is None:
+            df = pd.read_csv(label_file)
+            splits_dir = os.path.join(base_dir, "splits")
 
-        if split == "train":
-            df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
-        elif split == "test":
-            df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
-        else:
-            raise Exception("Invalid split value. Must be train or test.")
+            if split == "train":
+                df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
+            elif split == "test":
+                df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
+            else:
+                raise Exception("Invalid split value. Must be train or test.")
 
         self.labels = df
         self.base_dir = base_dir
@@ -89,8 +93,8 @@ class SymptomDataset(Dataset):
             return 0
 
 
-def get_data_loader(label_file, base_dir, batch_size=128, split="train"):
-    dataset = SymptomDataset(label_file, base_dir, split=split)
+def get_data_loader(label_file, base_dir, batch_size=128, split="train", df=None):
+    dataset = SymptomDataset(label_file, base_dir, split=split, df=df)
     return DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
 
 
@@ -98,7 +102,7 @@ class CNN(torch.nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
         self.cnn_layers = Sequential(
-            Conv2d(1, 128, kernel_size=[7,11], stride=2, padding=1),
+            Conv2d(1, 128, kernel_size=[7, 11], stride=2, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
             Conv2d(128, 256, kernel_size=5, padding=1),
@@ -135,7 +139,6 @@ def train(epoch, arch, model, loader, optimizer, device):
     y_pred = []
 
     for i, data in enumerate(loader):
-        print(i)
         X, y = data
         X, y = X.view(128, 1, 259, 128).to(device), y.to(device)
 
@@ -183,17 +186,19 @@ def get_accuracy(labels, preds):
 def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
+    n_splits = 5
     num_epochs = 500
     batch_size = 128
     learning_rate = 0.001
     label_file = os.path.join(base_dir, "processed", "symptoms_labels.csv")
 
-    train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size)
-    test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, split="test")
+    # whole_train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size)
+    whole_test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, split="test")
 
     if not os.path.exists(os.path.join(log_dir, "params.txt")):
         with open(os.path.join(log_dir, "params.txt"), "w") as f:
             f.write(f"Model: {architecture}\n")
+            f.write(f"Folds: {n_splits}\n")
             f.write(f"Epochs: {num_epochs}\n")
             f.write(f"Batch size: {batch_size}\n")
             f.write(f"Learning rate: {learning_rate}")
@@ -205,30 +210,70 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
     best_train_loss = 999
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for epoch in range(1, num_epochs + 1):
-        start = time.time()
-        train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
-        if train_loss < best_train_loss:
-            save_weights(model, os.path.join(log_dir, "best_weights.pt"))
-            best_train_loss = train_loss
-        elapsed = time.time() - start
-        print("Epoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-        print("\tTrain CE: {:.7f}".format(train_loss))
-        ce, test_true, test_pred = test(architecture, model, test_loader, device)
-        train_accuracy = get_accuracy(train_true, train_pred)
-        test_accuracy = get_accuracy(test_true, test_pred)
-        print("\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+    dataset = SymptomDataset(label_file, base_dir, split="train")
+    df = dataset.labels
+
+    total_train_acc = 0
+    total_test_acc = 0
+    kf = KFold(n_splits=n_splits, shuffle=True, random_state=345)
+    for fold, (train_idx, test_idx) in enumerate(kf.split(df)):
+        print("Fold: {:03d}".format(fold))
+        with open(log_file, "a+") as log:
+            log.write("Fold: {:03d}".format(fold))
+
+        train_df = df.iloc[train_idx]
+        test_df = df.iloc[test_idx]
+        train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=train_df)
+        test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=test_df)
+
+        fold_train_acc = 0
+        fold_test_acc = 0
+        for epoch in range(1, num_epochs + 1):
+            start = time.time()
+            train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
+            if train_loss < best_train_loss:
+                save_weights(model, os.path.join(log_dir, "best_weights.pt"))
+                best_train_loss = train_loss
+            elapsed = time.time() - start
+            print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+            print("\t\tTrain CE: {:.7f}".format(train_loss))
+            ce, test_true, test_pred = test(architecture, model, test_loader, device)
+            train_accuracy = get_accuracy(train_true, train_pred)
+            test_accuracy = get_accuracy(test_true, test_pred)
+            print("\t\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+            with open(log_file, "a+") as log:
+                log.write(
+                    "\tEpoch: {:03d}\tLoss: {:.7f}\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(
+                        epoch, train_loss, train_accuracy, test_accuracy
+                    )
+                )
+            fold_train_acc += train_accuracy
+            fold_test_acc += test_accuracy
+
+        fold_train_acc /= float(num_epochs)
+        fold_test_acc /= float(num_epochs)
+        total_train_acc += fold_train_acc
+        total_test_acc += fold_test_acc
         with open(log_file, "a+") as log:
             log.write(
-                "Epoch: {:03d}\tLoss: {:.7f}\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(
-                    epoch, train_loss, train_accuracy, test_accuracy
+                "Fold: {:03d}\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
+                    fold, fold_train_acc, fold_test_acc
                 )
             )
+
+    total_train_acc /= float(n_splits)
+    total_test_acc /= float(n_splits)
+    with open(log_file, "a+") as log:
+        log.write(
+            "\Total Cross Val Train Acc: {:.7f}\Total Cross Val Test Acc: {:.7f}\n".format(
+                total_train_acc, total_test_acc
+            )
+        )
 
     if test_mode:
         test_file = os.path.join(log_dir, f"test_results.txt")
         model.load_state_dict(torch.load(os.path.join(log_dir, "best_weights.pt")))
-        ce, y_true, y_pred = test(architecture, model, test_loader, device)
+        ce, y_true, y_pred = test(architecture, model, whole_test_loader, device)
         print("Test CE: {:.7f}".format(ce))
         with open(test_file, "a+") as out:
             out.write("{}\t{:.7f}\n".format(seed, ce))
