@@ -257,6 +257,11 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
         fold_test_acc /= float(num_epochs)
         total_train_acc += fold_train_acc
         total_test_acc += fold_test_acc
+        print(
+            "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
+                fold, elapsed_fold, fold_train_acc, fold_test_acc
+            )
+        )
         with open(log_file, "a+") as log:
             log.write(
                 "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
@@ -266,9 +271,10 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
 
     total_train_acc /= float(n_splits)
     total_test_acc /= float(n_splits)
+    print("Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc, total_test_acc))
     with open(log_file, "a+") as log:
         log.write(
-            "\Total Cross Val Train Acc: {:.7f}\Total Cross Val Test Acc: {:.7f}\n".format(
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
                 total_train_acc, total_test_acc
             )
         )
