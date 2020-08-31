@@ -14,7 +14,6 @@ import torch.nn.functional as F
 from torch.nn import Sequential, Linear, ReLU, MSELoss, Conv2d, LeakyReLU, MaxPool2d, Dropout
 from torch.utils.data import Dataset, DataLoader
 
-
 from sklearn.model_selection import KFold
 
 from features import mel
@@ -22,11 +21,6 @@ from features import mel
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
-
-# TODO: K FOLD CROSS VAL
-# TODO: K FOLD CROSS VAL
-# TODO: K FOLD CROSS VAL
-# TODO: K FOLD CROSS VAL
 
 
 class SymptomDataset(Dataset):
@@ -213,71 +207,73 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
     dataset = SymptomDataset(label_file, base_dir, split="train")
     df = dataset.labels
 
-    total_train_acc = 0
-    total_test_acc = 0
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=345)
-    for fold, (train_idx, test_idx) in enumerate(kf.split(df)):
-        start_fold = time.time()
-        print("Fold: {:03d}".format(fold))
-        with open(log_file, "a+") as log:
-            log.write("Fold: {:03d}".format(fold))
+    if not test_mode:
+        total_train_acc = 0
+        total_test_acc = 0
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=345)
+        for fold, (train_idx, test_idx) in enumerate(kf.split(df)):
+            start_fold = time.time()
+            print("Fold: {:03d}".format(fold + 1))
+            with open(log_file, "a+") as log:
+                log.write("Fold: {:03d}".format(fold + 1))
 
-        train_df = df.iloc[train_idx]
-        test_df = df.iloc[test_idx]
-        train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=train_df)
-        test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=test_df)
+            train_df = df.iloc[train_idx]
+            test_df = df.iloc[test_idx]
+            train_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=train_df)
+            test_loader = get_data_loader(label_file, base_dir, batch_size=batch_size, df=test_df)
 
-        fold_train_acc = 0
-        fold_test_acc = 0
-        for epoch in range(1, num_epochs + 1):
-            start = time.time()
-            train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
-            if train_loss < best_train_loss:
-                save_weights(model, os.path.join(log_dir, "best_weights.pt"))
-                best_train_loss = train_loss
-            elapsed = time.time() - start
-            print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-            print("\t\tTrain CE: {:.7f}".format(train_loss))
-            ce, test_true, test_pred = test(architecture, model, test_loader, device)
-            train_accuracy = get_accuracy(train_true, train_pred)
-            test_accuracy = get_accuracy(test_true, test_pred)
-            print("\t\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+            fold_train_acc = 0
+            fold_test_acc = 0
+            for epoch in range(1, num_epochs + 1):
+                start = time.time()
+                train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
+                if train_loss < best_train_loss:
+                    save_weights(model, os.path.join(log_dir, "best_weights.pt"))
+                    best_train_loss = train_loss
+                elapsed = time.time() - start
+                print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+                print("\t\tTrain CE: {:.7f}".format(train_loss))
+                ce, test_true, test_pred = test(architecture, model, test_loader, device)
+                train_accuracy = get_accuracy(train_true, train_pred)
+                test_accuracy = get_accuracy(test_true, test_pred)
+                print("\t\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+                with open(log_file, "a+") as log:
+                    log.write(
+                        "\tEpoch: {:03d}\tLoss: {:.7f}\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(
+                            epoch, train_loss, train_accuracy, test_accuracy
+                        )
+                    )
+                fold_train_acc += train_accuracy
+                fold_test_acc += test_accuracy
+
+            elapsed_fold = time.time() - start_fold
+
+            fold_train_acc /= float(num_epochs)
+            fold_test_acc /= float(num_epochs)
+            total_train_acc += fold_train_acc
+            total_test_acc += fold_test_acc
+            print(
+                "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
+                    fold + 1, elapsed_fold, fold_train_acc, fold_test_acc
+                )
+            )
             with open(log_file, "a+") as log:
                 log.write(
-                    "\tEpoch: {:03d}\tLoss: {:.7f}\tTrain Acc: {:.7f}\tTest Acc: {:.7f}\n".format(
-                        epoch, train_loss, train_accuracy, test_accuracy
+                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
+                        fold + 1, elapsed_fold, fold_train_acc, fold_test_acc
                     )
                 )
-            fold_train_acc += train_accuracy
-            fold_test_acc += test_accuracy
 
-        elapsed_fold = time.time() - start_fold
-
-        fold_train_acc /= float(num_epochs)
-        fold_test_acc /= float(num_epochs)
-        total_train_acc += fold_train_acc
-        total_test_acc += fold_test_acc
-        print(
-            "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
-                fold, elapsed_fold, fold_train_acc, fold_test_acc
-            )
-        )
+        total_train_acc /= float(n_splits)
+        total_test_acc /= float(n_splits)
+        print("Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc, total_test_acc))
         with open(log_file, "a+") as log:
             log.write(
-                "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
-                    fold, elapsed_fold, fold_train_acc, fold_test_acc
+                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
+                    total_train_acc, total_test_acc
                 )
             )
-
-    total_train_acc /= float(n_splits)
-    total_test_acc /= float(n_splits)
-    print("Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc, total_test_acc))
-    with open(log_file, "a+") as log:
-        log.write(
-            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-                total_train_acc, total_test_acc
-            )
-        )
+        return best_train_loss
 
     if test_mode:
         test_file = os.path.join(log_dir, f"test_results.txt")
@@ -286,8 +282,7 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
         print("Test CE: {:.7f}".format(ce))
         with open(test_file, "a+") as out:
             out.write("{}\t{:.7f}\n".format(seed, ce))
-
-    return best_train_loss
+        return ce
 
 
 if __name__ == "__main__":
