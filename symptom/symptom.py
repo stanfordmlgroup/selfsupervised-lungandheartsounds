@@ -187,7 +187,7 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
     n_splits = 5
-    num_epochs = 500
+    num_epochs = 50
     batch_size = 128
     learning_rate = 0.001
     label_file = os.path.join(base_dir, "processed", "symptoms_labels.csv")
@@ -217,6 +217,7 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
     total_test_acc = 0
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=345)
     for fold, (train_idx, test_idx) in enumerate(kf.split(df)):
+        start_fold = time.time()
         print("Fold: {:03d}".format(fold))
         with open(log_file, "a+") as log:
             log.write("Fold: {:03d}".format(fold))
@@ -250,14 +251,16 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False):
             fold_train_acc += train_accuracy
             fold_test_acc += test_accuracy
 
+        elapsed_fold = time.time() - start_fold
+
         fold_train_acc /= float(num_epochs)
         fold_test_acc /= float(num_epochs)
         total_train_acc += fold_train_acc
         total_test_acc += fold_test_acc
         with open(log_file, "a+") as log:
             log.write(
-                "Fold: {:03d}\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
-                    fold, fold_train_acc, fold_test_acc
+                "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Test Acc: {:.7f}\n".format(
+                    fold, elapsed_fold, fold_train_acc, fold_test_acc
                 )
             )
 
