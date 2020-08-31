@@ -281,8 +281,10 @@ def train_(architecture, base_dir, device, log_dir, seed=None, test_mode=False, 
         model.load_state_dict(torch.load(weights))
         ce, y_true, y_pred = test(architecture, model, whole_test_loader, device)
         print("Test CE: {:.7f}".format(ce))
+        accuracy = get_accuracy(y_true, y_pred)
+        print("Test Acc: {:.7f}".format(accuracy))
         with open(test_file, "a+") as out:
-            out.write("{}\t{:.7f}\n".format(seed, ce))
+            out.write("Seed{}\tCE{:.7f}\tAcc{:.7f}\n".format(seed, ce, accuracy))
         return ce
 
 
