@@ -10,8 +10,8 @@ def get_vggish_embedding(filename=None):
     """takes in a raw wav file and converts it to a x*128 embedding, where x is the number of seconds in the clip."""
     os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # prevents weird error with matplotlib
     vggish = torch.hub.load('harritaylor/torchvggish', 'vggish')
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    vggish.to(device)
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #vggish.to(device)
     vggish.eval()
     return vggish.forward(filename)
 

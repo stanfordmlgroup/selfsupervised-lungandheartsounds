@@ -107,7 +107,7 @@ def process(data_path='../data', labels_only=False):
     # for each original file we splice by timestamps, and save as well as constructing a label file for the symptoms
     i = 0  # iterator for file naming
     with open(os.path.join(processed_dir, 'symptoms_labels.csv'), "w") as out:
-        out.write("cycle,crackles,wheezes\n")
+        out.write("ID,cycle,crackles,wheezes\n")
 
         for idx, row in tqdm(files_df.iterrows(), total=files_df.shape[0]):
             filename = row['filename']
@@ -129,7 +129,6 @@ def process(data_path='../data', labels_only=False):
                     i = 0
 
             n_filename = filename + '_' + str(i) + '.wav'
-
             if not labels_only:
                 path = os.path.join(processed_dir, diag, n_filename)
 
@@ -144,8 +143,12 @@ def process(data_path='../data', labels_only=False):
                 sf.write(file=path, data=padded_data, samplerate=samplingrate)
 
             cycle = n_filename.split(".")[0]
-            out.write(cycle + "," + str(crackles) + "," + str(wheezes) + "\n")
+            files_df.loc[idx,'cycle']=cycle
+            ID = cycle.split('_')[0]
+            out.write(f'{ID},{cycle},{str(crackles)},{str(wheezes)}\n')
 
+    files_df=files_df[["pId","cycle","diagnosis"]].rename(columns={"pId":"ID"})
+    files_df.to_csv(os.path.join(processed_dir, 'disease_labels.csv'), index=False)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

@@ -3,8 +3,7 @@ import os
 import sys
 
 #TODO import more stuff
-from disease import disease
-import symptom
+from models import disease,symptom
 
 # Entry Script for Lung Sounds
 
@@ -39,7 +38,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--task', help='symptom or disease')
 	parser.add_argument('--train', dest='train', action='store_true', help='train the model')
-	parser.set_defaults(train=False)
+	parser.set_defaults(train=True)
 	parser.add_argument('--test', dest='test', action='store_true', help='test the model')
 	parser.set_defaults(test=False)
 	parser.add_argument('--model', help='path to model, required if testing', required='--test' in sys.argv)
