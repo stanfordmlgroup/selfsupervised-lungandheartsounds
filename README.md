@@ -1,20 +1,18 @@
 # aihc-sum20-lung-sounds
 
 ## Utility scripts & methods w/ relevant usage examples
-
 ### process.py
 Provides functionality to take raw audio and text files and generate a processed dir (_path_/processed) with audio files spliced by respiratory cycle. Also generates disease_labels.csv (mapped disease diagnoses) and symptoms_labels.csv (presence of crackles/wheezes for each respiratory file)  
-
 #### Running script from terminal
 ```
-$ python process.py [--data "data directory"]
+$ python process.py [--data "data directory"] [--labels_only "if True, doesn't process only makes labels"] 
 ```
-DEAFULTS:
+DEFAULTS:
 
 data: /data/
-
+labels_only: False
 ### split.py
-Creates train test splits. Each patient id is assigned to exactly  
+Creates train test splits. Each patient id is assigned to exactly one of train/test.  
 
 #### Running script from terminal
 ```
@@ -48,7 +46,6 @@ Currently implemented:
 5. MEL
 6. Contrast
 7. Tonnetz
-
 #### Running script from terminal
 ```
 $ python features.py [--file "example filename"]
@@ -72,27 +69,26 @@ stft(filename): returns a 1025*x embedding, where x is the number of frames in t
 ```
 #### MFCCS
 ```
-mfccs(filename): returns a feature of length 40
+mfccs(filename): returns a feature of length x*40, where x is the number of frames in the clip
 ```
 #### Chroma
 ```
-chroma(filename): returns a feature of length 12
+chroma(filename): returns a feature of length x*12, where x is the number of frames in the clip
 ```
 #### Mel
 ```
-mel(filename): returns a feature of length 128
+mel(filename): returns a feature of length x*128, where x is the number of frames in the clip
 ```
 #### Contrast
 ```
-contrast(filename): returns a feature of length 7
+contrast(filename): returns a feature of length x*7, where x is the number of frames in the clip
 ```
 #### Tonnetz
 ```
-tonnetz(filename): returns a feature of length 6
+tonnetz(filename): returns a feature of length x*6, where x is the number of frames in the clip
 ```
 <hr>
 
 ### file.py
 General functions for dealing with file reading and manipulation
-
 
