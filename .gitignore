@@ -71,7 +71,9 @@ target/
 
 # Mypy cache
 .mypy_cache/
+
 /data.tar
+*.zip
 
 /disease/data/processed/*
 /data/audio_and_txt_files/
@@ -79,3 +81,6 @@ target/
 /data/processed/Healthy/
 /data/processed/COPD/
 /data/logs
+/data/test_set
+/heartchallenge/audio_loc
+/heartchallenge/raw
