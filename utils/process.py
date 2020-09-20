@@ -110,32 +110,26 @@ def process(data_path='../data', labels_only=False):
         out.write("cycle,crackles,wheezes\n")
 
         for idx, row in tqdm(files_df.iterrows(), total=files_df.shape[0]):
-            filename = row['filename']
-            start = row['start']
-            end = row['end']
-            diag = row['diagnosis']
-            crackles = row['crackles']
-            wheezes = row['wheezes']
             if not labels_only:
                 # check len and force to 6 sec if more than that
-                if force_max_len < end - start:
-                    end = start + force_max_len
+                if force_max_len < row['end'] - row['start']:
+                    end = row['start'] + force_max_len
 
             # reset index for each original file
             if idx != 0:
-                if files_df.iloc[idx - 1]['filename'] == filename:
+                if files_df.iloc[idx - 1]['filename'] == row['filename']:
                     i = i + 1
                 else:
                     i = 0
 
-            n_filename = filename + '_' + str(i) + '.wav'
+            n_filename = row['filename'] + '_' + str(i) + '.wav'
 
             if not labels_only:
-                path = os.path.join(processed_dir, diag, n_filename)
+                path = os.path.join(processed_dir, row['diagnosis'], n_filename)
 
-                aud_loc = audio_text_loc + '/' + filename + '.wav'
+                aud_loc = audio_text_loc + '/' + row['filename'] + '.wav'
                 data, samplingrate = lb.load(aud_loc)
-                sliced_data = slice_data(start=start, end=end, raw_data=data, sample_rate=samplingrate)
+                sliced_data = slice_data(start=row['start'], end=end, raw_data=data, sample_rate=samplingrate)
 
                 # pad audio if < forced_max_len
                 a_len = compute_len(samp_rate=samplingrate, time=force_max_len, acquisition_mode=row['ac_mode'] == 'sc')
@@ -144,7 +138,7 @@ def process(data_path='../data', labels_only=False):
                 sf.write(file=path, data=padded_data, samplerate=samplingrate)
 
             cycle = n_filename.split(".")[0]
-            out.write(cycle + "," + str(crackles) + "," + str(wheezes) + "\n")
+            out.write(cycle + "," + str(row['crackles']) + "," + str(row['wheezes']) + "\n")
 
 
 if __name__ == "__main__":
