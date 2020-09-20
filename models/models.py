@@ -7,15 +7,19 @@ import argparse
 import sys
 import torch
 import torch.nn.functional as F
-from torch.nn import Sequential, Linear, ReLU, MSELoss, Conv2d, LeakyReLU, MaxPool2d, Dropout
+from torch.nn import Sequential, Linear, ReLU, MSELoss, Conv2d, LeakyReLU, MaxPool2d, Dropout, CrossEntropyLoss
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, classification_report
+from sklearn.dummy import DummyClassifier
 
 sys.path.append("../utils")
 from features import mel
 from glob import glob
 from scipy.special import softmax
+import lightgbm as lgbm
+import joblib
+import labels as la
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -71,7 +75,7 @@ class LungDataset(Dataset):
         IDs = set()
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
-        return df[~df.ID.isin(IDs)]
+        return df[df.ID.isin(IDs)]
 
     def get_class_val(self, row):
         if self.task == "symptom":
@@ -92,16 +96,26 @@ class LungDataset(Dataset):
             # 0: Healthy, 1: COPD, 2: Other
             label = row["diagnosis"]
             if label == 'Healthy':
-                return 2
+                return 0
             elif label == 'COPD':
                 return 1
             else:
-                return 0
+                return 2
 
 
 def get_data_loader(task, label_file, base_dir, batch_size=128, split="train", df=None):
     dataset = LungDataset(label_file, base_dir, task, split=split, df=df)
     return DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
+
+
+def get_scikit_loader(task, label_file, base_dir, split="train", df=None):
+    dataset = LungDataset(label_file, base_dir, task, split=split, df=df)
+    X = []
+    y = []
+    for data in dataset:
+        X.append(data[0].numpy())
+        y.append(data[1])
+    return X, y
 
 
 class CNN(torch.nn.Module):
@@ -139,9 +153,8 @@ class CNN(torch.nn.Module):
         return x
 
 
-def train(epoch, arch, model, loader, optimizer, device):
+def train(epoch, arch, model, loader, optimizer, device, loss):
     model.train()
-
     y_true = []
     y_pred = []
 
@@ -152,20 +165,21 @@ def train(epoch, arch, model, loader, optimizer, device):
         optimizer.zero_grad()
         if arch == "CNN":
             output = model(X)
-        loss = F.cross_entropy(output, y)
+        train_loss = loss(output, y)
         y_true.extend(y.tolist())
         y_pred.extend(output.tolist())
-        loss.backward()
+        train_loss = train_loss.cuda()
+        train_loss.backward()
         optimizer.step()
-    ce = F.cross_entropy(torch.tensor(y_pred), torch.tensor(y_true))
+
+    ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
 
     return ce, y_true, y_pred
 
 
 @torch.no_grad()
-def test(arch, model, loader, device):
+def test(arch, model, loader, device, loss):
     model.eval()
-
     y_true = []
     y_pred = []
 
@@ -175,11 +189,9 @@ def test(arch, model, loader, device):
 
         if arch == "CNN":
             output = model(X)
-        loss = F.cross_entropy(output, y)
         y_true.extend(y.tolist())
         y_pred.extend(output.tolist())
-
-    ce = F.cross_entropy(torch.tensor(y_pred), torch.tensor(y_true))
+    ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
 
     return ce, y_true, y_pred
 
@@ -219,126 +231,214 @@ def train_(task, architecture, base_dir, device, log_dir, folds=5):
     elif task == "symptom":
         classes = 4
 
-    if architecture == "CNN":
-        model = CNN(classes=classes).to(device)
-
-    model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
     dataset = LungDataset(label_file, base_dir, task, split="train")
     df = dataset.labels
     total_train_acc = 0
     total_test_acc = 0
     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=345)
-    for fold, (train_idx, test_idx) in enumerate(kf.split(df, df["y"])):
-        best_test_loss = 999
 
-        model.apply(weights_init)
-        start_fold = time.time()
-        print("Fold: {:03d}".format(fold))
-        with open(log_file, "a+") as log:
-            log.write("Fold: {:03d}".format(fold))
-
-        train_df = df.iloc[train_idx]
-        test_df = df.iloc[test_idx]
-        train_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, df=train_df)
-        test_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, df=test_df)
-
-        fold_train_acc = 0
-        fold_test_acc = 0
-        for epoch in range(1, num_epochs + 1):
-            start = time.time()
-            train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device)
-            test_loss, test_true, test_pred = test(architecture, model, test_loader, device)
-            train_accuracy = get_accuracy(train_true, train_pred)
-            test_accuracy = get_accuracy(test_true, test_pred)
-            if test_loss < best_test_loss:
-                save_weights(model, os.path.join(log_dir, "best_weights_" + str(fold) + ".pt"))
-                best_test_loss = test_loss
-            elapsed = time.time() - start
-            print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-            print("\t\tTrain CE: {:.7f}\tVal CE: {:.7f}".format(train_loss, test_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+    weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(device)
+    weights = 1.0 / weights
+    weights = weights / weights.sum()
+    loss = CrossEntropyLoss(weight=weights).to(device)
+    if architecture == "lgbm":
+        X, y = get_scikit_loader(task, label_file, base_dir, split="train", df=df)
+        X = np.asarray(X)
+        X = X.reshape(X.shape[0], X.shape[1] * X.shape[2])
+        y = np.asarray(y)
+        params = {"random_state": 345, "objective": "multiclass", "num_classes": classes, "verbose": -1,"gpu_platform_id":0,"gpu_device_id":0}
+        results = lgbm.cv(params, lgbm.Dataset(np.asarray(X), label=np.asarray(y), categorical_feature="auto"),
+                          folds=kf, metrics=["multiclass"])
+        model = lgbm.LGBMClassifier(**params, class_weight="balanced", n_estimators=len(results['multi_logloss-mean']))
+        for fold, (train_idx, test_idx) in enumerate(kf.split(df, df["y"])):
+            start_fold = time.time()
+            print("Fold: {:03d}".format(fold))
             with open(log_file, "a+") as log:
-                log.write(
-                    "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(
-                        epoch, train_loss, test_loss, train_accuracy, test_accuracy
-                    )
-                )
+                log.write("Fold: {:03d}".format(fold))
+            model.fit(X[train_idx], y[train_idx])
+            train_pred = model.predict_proba(X[train_idx])[:, 1]
+            test_pred = model.predict_proba(X[test_idx])[:, 1]
+            joblib.dump(model, os.path.join(log_dir, "lgbm_fold_" + str(fold) + ".pkl"))
+            fold_train_acc = get_accuracy(y[train_idx], train_pred)
+            fold_test_acc = get_accuracy(y[test_idx], test_pred)
+            total_train_acc += fold_train_acc
+            total_test_acc += fold_test_acc
+            elapsed_fold = time.time() - start_fold
 
-            fold_train_acc += train_accuracy
-            fold_test_acc += test_accuracy
-
-        elapsed_fold = time.time() - start_fold
-
-        fold_train_acc /= float(num_epochs)
-        fold_test_acc /= float(num_epochs)
-        total_train_acc += fold_train_acc
-        total_test_acc += fold_test_acc
-        print(
-            "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\n".format(
-                fold, elapsed_fold, fold_train_acc, fold_test_acc
-            )
-        )
-        with open(log_file, "a+") as log:
-            log.write(
+            print(
                 "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\n".format(
                     fold, elapsed_fold, fold_train_acc, fold_test_acc
                 )
             )
+            with open(log_file, "a+") as log:
+                log.write(
+                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\n".format(
+                        fold, elapsed_fold, fold_train_acc, fold_test_acc
+                    )
+                )
 
-    total_train_acc /= float(n_splits)
-    total_test_acc /= float(n_splits)
-    print(
-        "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc, total_test_acc))
-    with open(log_file, "a+") as log:
-        log.write(
-            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-                total_train_acc, total_test_acc
+        total_train_acc /= float(n_splits)
+        total_test_acc /= float(n_splits)
+        print(
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
+                                                                                           total_test_acc))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
+                    total_train_acc, total_test_acc
+                )
             )
-        )
 
-    return best_test_loss
+        return total_test_acc
+    elif architecture == "CNN":
+        model = CNN(classes=classes).to(device)
+        model.to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
+        for fold, (train_idx, test_idx) in enumerate(kf.split(df, df["y"])):
+            best_test_loss = 999
+
+            model.apply(weights_init)
+            start_fold = time.time()
+            train_df = df.iloc[train_idx]
+            test_df = df.iloc[test_idx]
+            train_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, df=train_df)
+            test_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, df=test_df)
+
+            fold_train_acc = 0
+            fold_test_acc = 0
+            for epoch in range(1, num_epochs + 1):
+                start = time.time()
+                train_loss, train_true, train_pred = train(epoch, architecture, model, train_loader, optimizer, device,
+                                                           loss)
+                test_loss, test_true, test_pred = test(architecture, model, test_loader, device, loss)
+                train_accuracy = get_accuracy(train_true, train_pred)
+                test_accuracy = get_accuracy(test_true, test_pred)
+                if test_loss < best_test_loss:
+                    save_weights(model, os.path.join(log_dir, "best_weights_" + str(fold) + ".pt"))
+                    best_test_loss = test_loss
+                elapsed = time.time() - start
+                print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+                print("\t\tTrain CE: {:.7f}\tVal CE: {:.7f}".format(train_loss, test_loss))
+                print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
+                with open(log_file, "a+") as log:
+                    log.write(
+                        "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(
+                            epoch, train_loss, test_loss, train_accuracy, test_accuracy
+                        )
+                    )
+
+                fold_train_acc += train_accuracy
+                fold_test_acc += test_accuracy
+
+            elapsed_fold = time.time() - start_fold
+
+            fold_train_acc /= float(num_epochs)
+            fold_test_acc /= float(num_epochs)
+            total_train_acc += fold_train_acc
+            total_test_acc += fold_test_acc
+            print(
+                "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\n".format(
+                    fold, elapsed_fold, fold_train_acc, fold_test_acc
+                )
+            )
+            with open(log_file, "a+") as log:
+                log.write(
+                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\n".format(
+                        fold, elapsed_fold, fold_train_acc, fold_test_acc
+                    )
+                )
+
+        total_train_acc /= float(n_splits)
+        total_test_acc /= float(n_splits)
+        print(
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
+                                                                                           total_test_acc))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
+                    total_train_acc, total_test_acc
+                )
+            )
+
+        return best_test_loss
+
+def auc_per_cat(true,pred,labels):
+    output={}
+    for i, label in enumerate(labels):
+        y=(true==i).astype(int)
+        output[label]=roc_auc_score(y,pred[:,i])
+    return output
 
 def test_(task, architecture, base_dir, device, log_dir, seed=None):
     batch_size = 128
     label_file = os.path.join(base_dir, "processed", task + "_labels.csv")
 
-    whole_test_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, split="test")
     if task == "disease":
         classes = 3
-        labels = ["Other", "COPD", "Healthy"]
+        labels = ["Healthy", "COPD", "Other"]
     elif task == "symptom":
         classes = 4
         labels = ["None", "Wheezes", "Crackles", "Both"]
 
-    if architecture == "CNN":
-        model = CNN(classes=classes).to(device)
-
-    model.to(device)
     test_file = os.path.join(log_dir, f"test_results.txt")
     _y_pred = []
+    weights = torch.as_tensor(la.class_distribution(task, label_file)).double().to(device)
+    weights = 1.0 / weights
+    weights = weights / weights.sum()
+    loss = CrossEntropyLoss(weight=weights).to(device)
     with open(test_file, "w+") as out:
-
-        for i, model_weights in enumerate(glob(os.path.join(os.path.join(log_dir, "best_weights_*.pt")))):
-            model.load_state_dict(torch.load(model_weights))
-            ce, y_true, y_pred = test(architecture, model, whole_test_loader, device)
-            print()
-            _y_pred.append(y_pred)
-            print("Model {} Test CE: {:.7f}".format(i, ce))
-            out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
+        if architecture == "CNN":
+            whole_test_loader = get_data_loader(task, label_file, base_dir, batch_size=batch_size, split="test")
+            model = CNN(classes=classes).to(device)
+            model.to(device)
+            for i, model_weights in enumerate(glob(os.path.join(os.path.join(log_dir, "best_weights_*.pt")))):
+                model.load_state_dict(torch.load(model_weights))
+                ce, y, y_pred = test(architecture, model, whole_test_loader, device, loss)
+                _y_pred.append(y_pred)
+                print("Model {} Test CE: {:.7f}".format(i, ce))
+                out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
+        elif architecture == "lgbm":
+            for i, model_weights in enumerate(glob(os.path.join(os.path.join(log_dir, "lgbm_fold_*.pkl")))):
+                X, y = get_scikit_loader(task, label_file, base_dir, split="test")
+                X = np.asarray(X)
+                X = X.reshape(X.shape[0], X.shape[1] * X.shape[2])
+                y = np.asarray(y)
+                model = joblib.load(model_weights)
+                y_pred = model.predict_proba(X)
+                _y_pred.append(y_pred)
+                loss=loss.cuda()
+                ce = loss(torch.as_tensor(y_pred).to(device), torch.as_tensor(y).long().to(device))
+                print("Model {} Test CE: {:.7f}".format(i, ce))
+                out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
 
         _y_pred = np.average(_y_pred, axis=0)
-        loss = get_accuracy(y_true, _y_pred)
-        roc_score = roc_auc_score(y_true, softmax(_y_pred, axis=1), multi_class="ovr")
-        report = classification_report(y_true, np.argmax(_y_pred, axis=1), target_names=labels)
-        print("Ensemble Accuracy {:.7f}\nEnsemble AUC-ROC {:.7f}\n{}\n".format(loss, roc_score, report))
+        auc_cat=auc_per_cat(y,softmax(_y_pred, axis=1),labels)
+        out.write("\nPer category AUC:")
+        print("\nPer category AUC:")
+        for key in auc_cat.keys():
+            out.write("{}: {:.3f}\n".format(key,auc_cat[key]))
+            print("{}: {:.3f}\n".format(key,auc_cat[key]))
+        roc_score = roc_auc_score(y, softmax(_y_pred, axis=1), multi_class="ovr")
+        report = classification_report(y, np.argmax(_y_pred, axis=1), target_names=labels)
+        print("Ensemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\n".format(architecture, roc_score, report))
         out.write(
-                "Seed: {}\tFolds: {}\nEnsemble Accuracy {:.7f}\nEnsemble AUC-ROC {:.7f}\n{}\n".format(seed, i, loss, roc_score, report))
+            "Seed: {}\tFolds: {}\nEnsemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\n".format(seed, i + 1, architecture,
+                                                                                       roc_score, report))
 
-    dataset_train = LungDataset(label_file, base_dir, task, split="train")
-    dataset_test = LungDataset(label_file, base_dir, task, split="test")
+        scikit_X, scikit_y = get_scikit_loader(task, label_file, base_dir, split="test")
+        baseline = DummyClassifier(strategy="most_frequent")
+        baseline.fit(scikit_X, scikit_y)
+        baseline_pred = baseline.predict(scikit_X)
+        report = classification_report(scikit_y, baseline_pred, target_names=labels, zero_division=0)
+        baseline_pred_as_class = []
+        for pred in baseline_pred:
+            pred_as_class = np.zeros((classes))
+            pred_as_class[pred] = 1.0
+            baseline_pred_as_class.append(pred_as_class)
+        roc_score = roc_auc_score(scikit_y, baseline_pred_as_class, multi_class="ovr")
+        print("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
+        out.write("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
 
     return ce
 
@@ -346,7 +446,7 @@ def test_(task, architecture, base_dir, device, log_dir, seed=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default="train", choices={"train", "test"})
-    parser.add_argument("--architecture", type=str, default="CNN", choices={"CNN"})
+    parser.add_argument("--architecture", type=str, default="CNN", choices={"CNN", "lgbm"})
     parser.add_argument("--task", type=str, default=None, choices={"symptom", "disease"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
