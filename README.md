@@ -12,7 +12,8 @@ DEFAULTS:
 data: /data/
 labels_only: False
 ### split.py
-Creates train test splits. Each patient id is assigned to exactly  
+Creates train test splits. Each patient id is assigned to exactly one of train/test.  
+
 #### Running script from terminal
 ```
 $ python split.py [--data "data directory"] [--splits "desired location of splits"] [--seed "seed for random sampling"] [--distribution "dict of classes and desired number of test files from each class"]
