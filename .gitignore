@@ -81,8 +81,13 @@ target/
 /data/processed/Healthy/
 /data/processed/COPD/
 /data/logs
-/heart/data/training-*/
-/heart/data/validation/
+/heart/raw/training-*/
+/heart/raw/validation/
 /data/test_set
 /heartchallenge/audio_loc
 /heartchallenge/raw
+*.wav
+*.pt
+*.pkl
+*.dat
+*.hea

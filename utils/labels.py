@@ -65,7 +65,44 @@ def class_distribution(task, label_file):
         labelsdf = labelsdf["combined"].apply(symptom_one_hot)
     elif task == "disease":
         labelsdf = labelsdf["diagnosis"].apply(diag_one_hot)
+    elif task == "heart":
+        labelsdf = labelsdf["label"].apply(heart_recover_label).apply(heart_one_hot)
+    elif task == "heartchallenge":
+        labelsdf = labelsdf["label"].apply(heartchallenge_one_hot)
     classes = np.sort(labelsdf.unique())
     for class_ in classes:
         distribution.append(labelsdf[labelsdf == class_].count())
     return distribution
+
+
+def heart_challenge_row_label(row):
+    for key in row.keys():
+        if row[key] == 1:
+            return key
+
+
+def heartchallenge_one_hot(label):
+    if label == "Artifact":
+        return 4
+    elif label == "Extrasound":
+        return 3
+    elif label == "Extrastole":
+        return 2
+    elif label == "Murmur":
+        return 1
+    else:
+        return 0
+
+
+def heart_one_hot(label):
+    if label == "Normal":
+        return 1
+    elif label == "Abnormal":
+        return 0
+
+
+def heart_recover_label(label):
+    if label == -1:
+        return "Normal"
+    elif label == 1:
+        return "Abnormal"

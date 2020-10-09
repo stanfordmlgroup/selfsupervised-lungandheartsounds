@@ -75,7 +75,7 @@ class HeartDataset(Dataset):
         IDs = set()
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
-        return df[~df.ID.isin(IDs)]
+        return df[df.ID.isin(IDs)]
 
     def get_class_val(self, row):
         if self.task == "heart":
@@ -167,7 +167,7 @@ class LungDataset(Dataset):
 def get_data_loader(task, label_file, base_dir, batch_size=128, split="train", df=None):
     dataset = None
     if task == "heart":
-        dataset = HeartDataset(os.path.join(base_dir, "ALL_REFERENCE.csv"), base_dir, task, split=split, df=df)
+        dataset = HeartDataset(os.path.join(base_dir, "heart_labels.csv"), base_dir, task, split=split, df=df)
     else:
         dataset = LungDataset(label_file, base_dir, task, split=split, df=df)
     return DataLoader(dataset, batch_size, shuffle=True, drop_last=True) # Careful with drop_last, make sure no empty data loader returned, decrease batch size if needed
@@ -316,7 +316,7 @@ def train_(task, architecture, base_dir, device, log_dir, folds=5):
 
     dataset = None
     if task == "heart":
-        dataset = HeartDataset(os.path.join(base_dir, "ALL_REFERENCE.csv"), base_dir, task, split="train")
+        dataset = HeartDataset(os.path.join(base_dir, "heart_labels.csv"), base_dir, task, split="train")
     else:
         dataset = LungDataset(label_file, base_dir, task, split="train")
     df = dataset.labels

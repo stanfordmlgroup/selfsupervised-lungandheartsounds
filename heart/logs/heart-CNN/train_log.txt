@@ -1,0 +1,7 @@
+	Epoch: 001	Train Loss: 194.4241943	Val Loss: 0.6666707	Train Acc: 0.5437500	Val Acc: 0.8541667
+	Epoch: 002	Train Loss: 1.1603652	Val Loss: 0.6678004	Train Acc: 0.7489583	Val Acc: 0.8776042
+	Epoch: 003	Train Loss: 0.6684650	Val Loss: 0.6642899	Train Acc: 0.8166667	Val Acc: 0.8671875
+	Epoch: 004	Train Loss: 0.6581084	Val Loss: 0.6581882	Train Acc: 0.8739583	Val Acc: 0.8828125
+	Epoch: 005	Train Loss: 0.6606795	Val Loss: 0.6710948	Train Acc: 0.8677083	Val Acc: 0.8619792
+	Epoch: 006	Train Loss: 0.6560772	Val Loss: 0.6755615	Train Acc: 0.8723958	Val Acc: 0.8697917
+	Epoch: 007	Train Loss: 0.6637896	Val Loss: 0.6546038	Train Acc: 0.8760417	Val Acc: 0.8828125
