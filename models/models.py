@@ -19,20 +19,20 @@ from scipy.special import softmax
 import lightgbm as lgbm
 import joblib
 import labels as la
-
+import random
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
 
 class LungDataset(Dataset):
-    def __init__(self, label_file, base_dir, task, split="train", transform=None, df=None):
+    def __init__(self, label_file, base_dir, task, split="train", transform=None, train_prop=1, df=None):
         if df is None:
             df = pd.read_csv(label_file)
             splits_dir = os.path.join(base_dir, "splits")
 
             if split == "train":
-                df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
+                df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -68,12 +68,13 @@ class LungDataset(Dataset):
         y = self.get_class_val(row)
         return X, y
 
-    def get_split(self, df, split_file_path):
+    def get_split(self, df, split_file_path, train_prop=1):
         # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
         # Returns a DataFrame of only samples with Patient IDs contained in the split.
         IDs = set()
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
+            IDs = set(random.sample(IDs, int(train_prop * len(IDs))))
         return df[df.ID.isin(IDs)]
 
     def get_class_val(self, row):
@@ -103,13 +104,13 @@ class LungDataset(Dataset):
 
 
 class HeartDataset(Dataset):
-    def __init__(self, label_file, base_dir, task, split="train", transform=None, df=None):
+    def __init__(self, label_file, base_dir, task, split="train", transform=None, train_prop=1, df=None):
         if df is None:
             df = pd.read_csv(label_file)
             splits_dir = os.path.join(base_dir, "splits")
 
             if split == "train":
-                df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
+                df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -145,12 +146,13 @@ class HeartDataset(Dataset):
         y = self.get_class_val(row)
         return X, y
 
-    def get_split(self, df, split_file_path):
+    def get_split(self, df, split_file_path, train_prop =1):
         # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
         # Returns a DataFrame of only samples with Patient IDs contained in the split.
         IDs = set()
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
+            IDs = set(random.sample(IDs, int(train_prop * len(IDs))))
         return df[df.ID.isin(IDs)]
 
     def get_class_val(self, row):
@@ -165,13 +167,13 @@ class HeartDataset(Dataset):
 
 
 class HeartChallengeDataset(Dataset):
-    def __init__(self, label_file, base_dir, task, split="train", transform=None, df=None):
+    def __init__(self, label_file, base_dir, task, split="train", transform=None, train_prop=1, df=None):
         if df is None:
             df = pd.read_csv(label_file)
             splits_dir = os.path.join(base_dir, "splits")
 
             if split == "train":
-                df = self.get_split(df, os.path.join(splits_dir, "train.txt"))
+                df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -207,12 +209,13 @@ class HeartChallengeDataset(Dataset):
         y = self.get_class_val(row)
         return X, y
 
-    def get_split(self, df, split_file_path):
+    def get_split(self, df, split_file_path, train_prop=1):
         # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
         # Returns a DataFrame of only samples with Patient IDs contained in the split.
         IDs = set()
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
+            IDs = set(random.sample(IDs, int(train_prop * len(IDs))))
         return df[df.ID.isin(IDs)]
 
     def get_class_val(self, row):
@@ -232,19 +235,19 @@ class HeartChallengeDataset(Dataset):
                 return 0
 
 
-def get_dataset(task, label_file, base_dir, split="train", df=None):
+def get_dataset(task, label_file, base_dir, split="train", train_prop=1, df=None):
     dataset = []
     if task == "symptom" or task == "disease":
-        dataset = LungDataset(label_file, base_dir, task, split=split, df=df)
+        dataset = LungDataset(label_file, base_dir, task, split=split, train_prop=train_prop, df=df)
     elif task == "heart":
-        dataset = HeartDataset(label_file, base_dir, task, split=split, df=df)
+        dataset = HeartDataset(label_file, base_dir, task, split=split,train_prop=train_prop,  df=df)
     elif task == "heartchallenge":
-        dataset = HeartChallengeDataset(label_file, base_dir, task, split=split, df=df)
+        dataset = HeartChallengeDataset(label_file, base_dir, task, split=split, train_prop=train_prop, df=df)
     return dataset
 
 
 def get_data_loader(task, label_file, base_dir, batch_size=128, split="train", df=None):
-    dataset = get_dataset(task, label_file, base_dir, split, df)
+    dataset = get_dataset(task, label_file, base_dir, split, df=df)
     return DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
 
 
@@ -409,7 +412,7 @@ def get_accuracy(labels, preds):
     return sum([np.argmax(pred) == label for label, pred in zip(labels, preds)]) / len(labels)
 
 
-def train_(task, architecture, base_dir, device, log_dir, folds=5):
+def train_(task, architecture, base_dir, device, log_dir, folds=5, train_prop=1):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
     n_splits = folds
@@ -424,6 +427,7 @@ def train_(task, architecture, base_dir, device, log_dir, folds=5):
         f.write(f"Epochs: {num_epochs}\n")
         f.write(f"Batch size: {batch_size}\n")
         f.write(f"Learning rate: {learning_rate}")
+        f.write(f"Proportion of training data: {train_prop}")
 
     if task == "disease":
         classes = 3
@@ -434,7 +438,7 @@ def train_(task, architecture, base_dir, device, log_dir, folds=5):
     elif task == "heartchallenge":
         classes = 5
 
-    dataset = get_dataset(task, label_file, base_dir, split="train")
+    dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
     df = dataset.labels
     total_train_acc = 0
     total_test_acc = 0
@@ -637,6 +641,7 @@ if __name__ == "__main__":
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--folds", type=int, default=5)
+    parser.add_argument("--train_prop", type=float, default=1.0)
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -653,7 +658,7 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        train_(args.task, args.architecture, base_dir, device, log_dir, args.folds)
+        train_(args.task, args.architecture, base_dir, device, log_dir, args.folds, args.train_prop)
     elif args.mode == "test":
         seed = np.random.randint(0, 1000)
         print("seed:", seed)
