@@ -278,12 +278,7 @@ class ContrastiveLearner(object):
             baseline.fit(scikit_X, scikit_y)
             baseline_pred = baseline.predict(scikit_X)
             report = classification_report(scikit_y, baseline_pred, target_names=labels, zero_division=0)
-            baseline_pred_as_class = []
-            for pred in baseline_pred:
-                pred_as_class = np.zeros((2,))
-                pred_as_class[pred] = 1.0
-                baseline_pred_as_class.append(pred_as_class)
-            roc_score = roc_auc_score(scikit_y, baseline_pred_as_class, multi_class="ovr")
+            roc_score = roc_auc_score(scikit_y, baseline_pred)
             print("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
             out.write("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
         return loss

@@ -2,3 +2,10 @@
 Fold: 000, Time: 331.603 s	Fold Train Acc: 0.1240157	Fold Val Acc: 0.1209677
 	Epoch: 001	Train Loss: 0.7564923	Val Loss: 0.7618225	Train Acc: 0.1240157	Val Acc: 0.1189516
 Fold: 001, Time: 314.110 s	Fold Train Acc: 0.1240157	Fold Val Acc: 0.1189516
+	Epoch: 001	Train Loss: 0.6735281	Val Loss: 0.6760326	Train Acc: 0.8759843	Val Acc: 0.8750000
+Fold: 002, Time: 322.901 s	Fold Train Acc: 0.8759843	Fold Val Acc: 0.8750000
+	Epoch: 001	Train Loss: 0.6821558	Val Loss: 0.6809746	Train Acc: 0.8750000	Val Acc: 0.8790323
+Fold: 003, Time: 316.081 s	Fold Train Acc: 0.8750000	Fold Val Acc: 0.8790323
+	Epoch: 001	Train Loss: 0.6621862	Val Loss: 0.6684726	Train Acc: 0.8759843	Val Acc: 0.8770161
+Fold: 004, Time: 327.288 s	Fold Train Acc: 0.8759843	Fold Val Acc: 0.8770161
+Total Cross Val Train Acc: 0.5750000	Total Cross Val Test Acc: 0.5741935
