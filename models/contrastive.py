@@ -1,6 +1,4 @@
-from .models import ResNetSimCLR
-from utils.loss import NTXentLoss
-import utils.loss as lo
+from models import ResNetSimCLR
 import os
 import time
 import numpy as np
@@ -13,13 +11,17 @@ from sklearn.metrics import roc_auc_score, classification_report, confusion_matr
 from sklearn.dummy import DummyClassifier
 from glob import glob
 from scipy.special import softmax
-import utils.labels as la
 import torch.nn.functional as F
-from .data import get_data_loader, get_dataset, get_scikit_loader, DataTransform
+from data import get_data_loader, get_dataset, get_scikit_loader, DataTransform
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 import joblib
-
+import sys
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append("../utils")
+import loss as lo
+import labels as la
+from loss import NTXentLoss
 
 class ContrastiveLearner(object):
 
@@ -30,7 +32,7 @@ class ContrastiveLearner(object):
         self.log_dir = log_dir
         self.nt_xent_criterion = NTXentLoss(self.device, batch_size, .5, use_cosine_similarity=True)
         self.model = model
-
+        self.batch_size = batch_size
     def _get_device(self):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print("Running on:", device)
@@ -99,17 +101,16 @@ class ContrastiveLearner(object):
                 )
         return model
 
-    def fine_tune(self, n_splits, task, label_file, log_file, encoder=None, evaluator_type=None, learning_rate=0,
-                  batch_size=0):
+    def fine_tune(self, n_splits, task, label_file, log_file, encoder=None, evaluator_type=None, learning_rate=0):
         df = self.dataset.labels
         total_train_acc = 0
         total_test_acc = 0
         kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=345)
 
-        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(device)
+        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         weights = 1.0 / weights
         weights = weights / weights.sum()
-        loss = CrossEntropyLoss(weight=weights).to(device)
+        loss = CrossEntropyLoss(weight=weights).to(self.device)
 
         if encoder is not None:
             encoder.eval()
@@ -158,8 +159,8 @@ class ContrastiveLearner(object):
                 model = self.get_model(2)
                 train_df = df.iloc[train_idx]
                 test_df = df.iloc[test_idx]
-                train_loader = get_data_loader(task, label_file, base_dir, batch_size, "train", train_df)
-                test_loader, test_y = get_data_loader(task, label_file, base_dir, batch_size, "test", test_df)
+                train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", train_df)
+                test_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "test", test_df)
                 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
                 fold_train_acc = 0
@@ -167,9 +168,9 @@ class ContrastiveLearner(object):
                 for epoch in range(1, self.epochs + 1):
                     best_test_loss = 999999
                     start = time.time()
-                    train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, device,
+                    train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                      loss)
-                    test_loss, test_true, test_pred = self._test(model, test_loader, device, loss)
+                    test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
                     train_accuracy = lo.get_accuracy(train_true, train_pred)
                     test_accuracy = lo.get_accuracy(test_true, test_pred)
 
@@ -226,7 +227,7 @@ class ContrastiveLearner(object):
         weights = 1.0 / weights
         weights = weights / weights.sum()
         loss = CrossEntropyLoss(weight=weights).to(self.device)
-
+        labels = ["Abnormal", "Normal"]
         with open(log_file, "w+") as out:
             if encoder is not None:
                 encoder.eval()
@@ -244,7 +245,7 @@ class ContrastiveLearner(object):
                     out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
             else:
                 for i, model_weights in enumerate(glob(os.path.join(evaluator_dir, "evaluator_*.pt"))):
-                    loader = get_data_loader(task, label_file, base_dir, batch_size=1, split="test")
+                    loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test")
 
                     model = self.get_model(2)
                     state_dict = torch.load(model_weights)
@@ -255,17 +256,17 @@ class ContrastiveLearner(object):
                     print("Model {} Test CE: {:.7f}".format(i, ce))
                     out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
             _y_pred = np.average(_y_pred, axis=0)
-            auc_cat = lo.auc_per_cat(y, softmax(_y_pred, axis=1), labels)
+            auc_cat = lo.auc_per_cat(y_true, softmax(_y_pred, axis=1), labels)
             out.write("\nPer category AUC:")
             print("\nPer category AUC:")
             for key in auc_cat.keys():
                 out.write("{}: {:.3f}\n".format(key, auc_cat[key]))
                 print("{}: {:.3f}\n".format(key, auc_cat[key]))
 
-            roc_score = roc_auc_score(y, softmax(_y_pred, axis=1)[:, 0])
+            roc_score = roc_auc_score(y_true, softmax(_y_pred, axis=1)[:, 0])
 
-            report = classification_report(y, np.argmax(_y_pred, axis=1), target_names=labels)
-            conf_matrix = confusion_matrix(y, np.argmax(_y_pred, axis=1))
+            report = classification_report(y_true, np.argmax(_y_pred, axis=1), target_names=labels)
+            conf_matrix = confusion_matrix(y_true, np.argmax(_y_pred, axis=1))
             print("Ensemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(roc_score, report, conf_matrix))
             out.write(
                 "Seed: {}\tFolds: {}\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed, i + 1,
@@ -293,7 +294,7 @@ class ContrastiveLearner(object):
             model.load_state_dict(state_dict)
             print("Loaded pre-trained model with success.")
         except FileNotFoundError:
-            print("Pre-trained weights not found. Training from scratch.")
+            print("Pre-trained weights not found.")
 
         return model
 
@@ -330,8 +331,10 @@ class ContrastiveLearner(object):
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
             output = model(X)
             y_true.extend(y.tolist())
-            y_pred.extend(output.tolist())
-
+            if X.shape[0] == 1:
+                y_pred.append(output.tolist())
+            else:
+                y_pred.extend(output.tolist())
         ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
 
         return ce, y_true, y_pred
@@ -339,10 +342,10 @@ class ContrastiveLearner(object):
     def _step(self, model, xis, xjs):
 
         # get the representations and the projections
-        ris, zis = model(xis)  # [N,C]
+        zis = model(xis)  # [N,C]
 
         # get the representations and the projections
-        rjs, zjs = model(xjs)  # [N,C]
+        zjs = model(xjs)  # [N,C]
 
         # normalize projection feature vectors
         zis = F.normalize(zis, dim=1)
@@ -374,15 +377,15 @@ class ContrastiveLearner(object):
 def pretrain_(task, base_dir, log_dir, train_prop=1):
     log_file = os.path.join(log_dir, f"pretraintrain_log.txt")
 
-    num_epochs = 20
+    num_epochs = 1
     batch_size = 128
     learning_rate = 0.001
 
     with open(os.path.join(log_dir, "pretrain_params.txt"), "w") as f:
         f.write(f"Epochs: {num_epochs}\n")
         f.write(f"Batch size: {batch_size}\n")
-        f.write(f"Learning rate: {learning_rate}")
-        f.write(f"Proportion of training data: {train_prop}")
+        f.write(f"Learning rate: {learning_rate}\n")
+        f.write(f"Proportion of training data: {train_prop}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
     dataset = get_dataset(task, label_file, base_dir, split="pre-train", train_prop=train_prop, transform=DataTransform())
@@ -394,16 +397,17 @@ def pretrain_(task, base_dir, log_dir, train_prop=1):
 def train_(task, base_dir, log_dir, evaluator, folds=5, train_prop=1):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
-    num_epochs = 20
-    batch_size = 128
+    num_epochs = 5
+    batch_size = 16
     learning_rate = 0.001
 
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
         f.write(f"Folds: {folds}\n")
         f.write(f"Epochs: {num_epochs}\n")
         f.write(f"Batch size: {batch_size}\n")
-        f.write(f"Learning rate: {learning_rate}")
-        f.write(f"Proportion of training data: {train_prop}")
+        f.write(f"Learning rate: {learning_rate}\n")
+        f.write(f"Proportion of training data: {train_prop}\n")
+        f.write(f"Evaluator: {evaluator}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
     dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
@@ -434,6 +438,7 @@ if __name__ == "__main__":
     parser.add_argument("--task", type=str, default=None, choices={"symptom", "disease", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
+    parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear"})
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--train_prop", type=float, default=1.0)
     args = parser.parse_args()
@@ -460,7 +465,7 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        train_(args.task, base_dir, log_dir, args.folds, args.train_prop)
+        train_(args.task, base_dir, log_dir, args.evaluator, args.folds, args.train_prop)
     elif args.mode == "test":
         seed = np.random.randint(0, 1000)
         print("seed:", seed)

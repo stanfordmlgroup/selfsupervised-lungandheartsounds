@@ -12,11 +12,14 @@ from glob import glob
 from scipy.special import softmax
 import lightgbm as lgbm
 import joblib
-import utils.labels as la
 import torchvision.models as models
 import torch.nn.functional as F
-from .data import get_data_loader, get_dataset, get_scikit_loader
-import utils.loss as lo
+from data import get_data_loader, get_dataset, get_scikit_loader
+import sys
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append("../utils")
+import loss as lo
+import labels as la
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -31,6 +34,7 @@ class ResNetSimCLR(torch.nn.Module):
                             "resnet50": models.resnet50(pretrained=False)}
 
         resnet = self._get_basemodel(base_model)
+        resnet.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         num_ftrs = resnet.fc.in_features
 
         self.features = Sequential(*list(resnet.children())[:-1])
@@ -54,7 +58,7 @@ class ResNetSimCLR(torch.nn.Module):
         x = self.l1(h)
         x = F.relu(x)
         x = self.l2(x)
-        return h, x
+        return x
 
 
 class CNN(torch.nn.Module):

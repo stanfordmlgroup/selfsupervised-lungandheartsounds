@@ -3,7 +3,10 @@ import random
 import os
 import torch
 from torch.utils.data import Dataset, DataLoader
-from utils.features import mel, get_vggish_embedding
+import sys
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append("../utils")
+from features import mel, get_vggish_embedding
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -125,7 +128,7 @@ class HeartDataset(Dataset):
         for d in dirs:
             file_path = parent_path + d + "/" + filename
             if os.path.isfile(file_path):
-                X = torch.Tensor(get_vggish_embedding(file_path))
+                X = torch.Tensor(mel(file_path))
                 break
         if X is None:
             raise Exception(f"Could not find filename {filename} in {parent_path}.")
@@ -260,7 +263,10 @@ def get_dataset(task, label_file, base_dir, split="train", train_prop=1, df=None
 
 def get_data_loader(task, label_file, base_dir, batch_size=128, split="train", df=None):
     dataset = get_dataset(task, label_file, base_dir, split, df=df)
-    return DataLoader(dataset, batch_size, shuffle=True, drop_last=True)
+    shuffle = True
+    if split == "test":
+        shuffle = False
+    return DataLoader(dataset, batch_size, shuffle=shuffle, drop_last=True)
 
 
 def get_scikit_loader(task, label_file, base_dir, split="train", df=None, encoder=None):

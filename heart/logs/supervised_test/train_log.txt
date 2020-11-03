@@ -1,0 +1,4 @@
+	Epoch: 001	Train Loss: 0.7095101	Val Loss: 0.7081791	Train Acc: 0.1240157	Val Acc: 0.1209677
+Fold: 000, Time: 331.603 s	Fold Train Acc: 0.1240157	Fold Val Acc: 0.1209677
+	Epoch: 001	Train Loss: 0.7564923	Val Loss: 0.7618225	Train Acc: 0.1240157	Val Acc: 0.1189516
+Fold: 001, Time: 314.110 s	Fold Train Acc: 0.1240157	Fold Val Acc: 0.1189516
