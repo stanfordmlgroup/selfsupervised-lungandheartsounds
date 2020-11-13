@@ -1,11 +1,1 @@
-Baseline:
-AUC-ROC: 0.5000000
-              precision    recall  f1-score   support
-
-    Abnormal       0.50      1.00      0.67       350
-      Normal       0.00      0.00      0.00       350
-
-    accuracy                           0.50       700
-   macro avg       0.25      0.50      0.33       700
-weighted avg       0.25      0.50      0.33       700
-
+Folds: 944

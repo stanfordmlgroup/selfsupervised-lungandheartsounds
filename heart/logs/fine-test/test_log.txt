@@ -1,0 +1,33 @@
+Model 0 Test CE: 3.4315848
+Model 1 Test CE: 7.8680696
+Model 2 Test CE: 1.9848412
+Model 3 Test CE: 11.0937986
+Model 4 Test CE: 3.6600275
+
+Per category AUC:Abnormal: 0.502
+Normal: 0.502
+Seed: 745	Folds: 5
+Ensemble AUC-ROC: 0.5024768
+              precision    recall  f1-score   support
+
+    Abnormal       0.50      0.95      0.66       324
+      Normal       0.56      0.06      0.11       324
+
+    accuracy                           0.51       648
+   macro avg       0.53      0.51      0.38       648
+weighted avg       0.53      0.51      0.38       648
+
+Confusion Matrix:
+[[309  15]
+ [305  19]]
+Baseline:
+AUC-ROC: 0.5000000
+              precision    recall  f1-score   support
+
+    Abnormal       0.50      1.00      0.67       324
+      Normal       0.00      0.00      0.00       324
+
+    accuracy                           0.50       648
+   macro avg       0.25      0.50      0.33       648
+weighted avg       0.25      0.50      0.33       648
+

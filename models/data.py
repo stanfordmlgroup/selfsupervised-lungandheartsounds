@@ -4,9 +4,11 @@ import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import sys
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 from features import mel, get_vggish_embedding
+import torchvision.transforms as transforms
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -21,6 +23,8 @@ class LungDataset(Dataset):
 
             if split == "train":
                 df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop)
+            elif split == "pre-train":
+                df = self.get_split(df, os.path.join(splits_dir, "pre-train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -91,16 +95,27 @@ class LungDataset(Dataset):
                 return 1
             else:
                 return 2
+        elif self.task == "lung":
+            # Takes in a single row in a DataFrame, return an Int.
+            # 0: Abnormal, 1: Normal
+            label = row["diagnosis"]
+            if label == -1:
+                return 1
+            else:
+                return 0
 
 
 class HeartDataset(Dataset):
-    def __init__(self, label_file, base_dir, task, split="train", transform=None, train_prop=1, df=None):
+
+    def __init__(self, label_file, base_dir, task, split="train", transform=None, train_prop=1.0, df=None):
         if df is None:
             df = pd.read_csv(label_file)
             splits_dir = os.path.join(base_dir, "splits")
 
             if split == "train":
                 df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
+            elif split == "pre-train":
+                df = self.get_split(df, os.path.join(splits_dir, "pre-train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -140,7 +155,7 @@ class HeartDataset(Dataset):
         y = self.get_class_val(row)
         return X, y
 
-    def get_split(self, df, split_file_path, train_prop=1):
+    def get_split(self, df, split_file_path, train_prop=1.0):
         # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
         # Returns a DataFrame of only samples with Patient IDs contained in the split.
         IDs = set()
@@ -168,6 +183,8 @@ class HeartChallengeDataset(Dataset):
 
             if split == "train":
                 df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
+            elif split == "pre-train":
+                df = self.get_split(df, os.path.join(splits_dir, "pre-train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             else:
@@ -216,16 +233,23 @@ class HeartChallengeDataset(Dataset):
 
     def get_class_val(self, row):
         if self.task == "heartchallenge":
+            # # Takes in a single row in a DataFrame, return an Int.
+            # # 0: None, 1: Wheeze, 2: Crackle, 3: Both
+            # label = row["label"]
+            # if label == "Artifact":
+            #     return 4
+            # elif label == "Extrasound":
+            #     return 3
+            # elif label == "Extrastole":
+            #     return 2
+            # elif label == "Murmur":
+            #     return 1
+            # else:
+            #     return 0
             # Takes in a single row in a DataFrame, return an Int.
-            # 0: None, 1: Wheeze, 2: Crackle, 3: Both
+            # 0: Abnormal, 1: Normal
             label = row["label"]
-            if label == "Artifact":
-                return 4
-            elif label == "Extrasound":
-                return 3
-            elif label == "Extrastole":
-                return 2
-            elif label == "Murmur":
+            if label == -1:
                 return 1
             else:
                 return 0
@@ -233,7 +257,13 @@ class HeartChallengeDataset(Dataset):
 
 def _get_pipeline_transform():
     # get a set of data augmentation transformations.
-    data_transforms = None
+    color_jitter = transforms.ColorJitter(0.8, 0.8, 0.8, 0.2)
+    data_transforms = transforms.Compose([transforms.ToPILImage(),
+                                          transforms.RandomResizedCrop(size=128),
+                                          transforms.RandomHorizontalFlip(),
+                                          transforms.RandomApply([color_jitter], p=0.8),
+                                          transforms.RandomGrayscale(p=0.2),
+                                          transforms.ToTensor()])
     return data_transforms
 
 
@@ -247,9 +277,9 @@ class DataTransform(object):
         return xi, xj
 
 
-def get_dataset(task, label_file, base_dir, split="train", train_prop=1, df=None, transform=None):
+def get_dataset(task, label_file, base_dir, split="train", train_prop=1.0, df=None, transform=None):
     dataset = []
-    if task == "symptom" or task == "disease":
+    if task == "symptom" or task == "disease" or task == "lung":
         dataset = LungDataset(label_file, base_dir, task, split=split, transform=transform, train_prop=train_prop,
                               df=df)
     elif task == "heart":
@@ -262,20 +292,26 @@ def get_dataset(task, label_file, base_dir, split="train", train_prop=1, df=None
 
 
 def get_data_loader(task, label_file, base_dir, batch_size=128, split="train", df=None):
-    dataset = get_dataset(task, label_file, base_dir, split, df=df)
+    transform = None
+
+    if split == "pre-train":
+        transform = DataTransform()
+    dataset = get_dataset(task, label_file, base_dir, split=split, df=df, transform=transform)
     shuffle = True
     if split == "test":
         shuffle = False
     return DataLoader(dataset, batch_size, shuffle=shuffle, drop_last=True)
 
 
-def get_scikit_loader(task, label_file, base_dir, split="train", df=None, encoder=None):
-    dataset = get_dataset(task, label_file, base_dir, split, df)
+def get_scikit_loader(device, task, label_file, base_dir, split="train", df=None, encoder=None):
+    dataset = get_dataset(task, label_file, base_dir, split=split, df=df)
     X = []
     y = []
     for data in dataset:
+        x = data[0]
         if encoder is not None:
-            data[0] = encoder(data[0])
-        X.append(data[0].numpy())
+            x= x.view(1,1,data[0].shape[0],data[0].shape[1]).to(device)
+            x = encoder(x)
+        X.append(x.cpu().detach().numpy())
         y.append(data[1])
     return X, y

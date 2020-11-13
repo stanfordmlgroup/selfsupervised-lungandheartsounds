@@ -1,0 +1,29 @@
+Model 0 Test CE: 0.6296234
+
+Per category AUC:Abnormal: 0.896
+Normal: 0.896
+Seed: 527	Folds: 1
+Ensemble AUC-ROC: 0.1037061
+              precision    recall  f1-score   support
+
+    Abnormal       0.87      0.65      0.75       350
+      Normal       0.72      0.91      0.80       350
+
+    accuracy                           0.78       700
+   macro avg       0.80      0.78      0.78       700
+weighted avg       0.80      0.78      0.78       700
+
+Confusion Matrix:
+[[229 121]
+ [ 33 317]]
+Baseline:
+AUC-ROC: 0.5000000
+              precision    recall  f1-score   support
+
+    Abnormal       0.50      1.00      0.67       350
+      Normal       0.00      0.00      0.00       350
+
+    accuracy                           0.50       700
+   macro avg       0.25      0.50      0.33       700
+weighted avg       0.25      0.50      0.33       700
+

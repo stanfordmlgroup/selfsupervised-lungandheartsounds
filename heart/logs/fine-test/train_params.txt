@@ -1,0 +1,6 @@
+Folds: 5
+Epochs: 5
+Batch size: 16
+Learning rate: 0.0001
+Proportion of training data: 1.0
+Evaluator: fine-tune

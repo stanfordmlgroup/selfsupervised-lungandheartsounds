@@ -65,10 +65,12 @@ def class_distribution(task, label_file):
         labelsdf = labelsdf["combined"].apply(symptom_one_hot)
     elif task == "disease":
         labelsdf = labelsdf["diagnosis"].apply(diag_one_hot)
-    elif task == "heart":
+    elif task == "heart" or task == "heartchallenge":
         labelsdf = labelsdf["label"].apply(heart_recover_label).apply(heart_one_hot)
-    elif task == "heartchallenge":
-        labelsdf = labelsdf["label"].apply(heartchallenge_one_hot)
+    elif task == "lung":
+        labelsdf = labelsdf["diagnosis"].apply(heart_recover_label).apply(heart_one_hot)
+    # elif task == "heartchallenge":
+    #     labelsdf = labelsdf["label"].apply(heartchallenge_one_hot)
     classes = np.sort(labelsdf.unique())
     for class_ in classes:
         distribution.append(labelsdf[labelsdf == class_].count())

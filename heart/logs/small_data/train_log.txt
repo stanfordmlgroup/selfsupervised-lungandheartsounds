@@ -1,0 +1,62 @@
+	Epoch: 001	Train Loss: 0.5355674	Val Loss: 2.4993947	Train Acc: 1.0000000	Val Acc: 0.8000000
+	Epoch: 002	Train Loss: 0.3594023	Val Loss: 2.1873007	Train Acc: 1.0000000	Val Acc: 0.8000000
+	Epoch: 003	Train Loss: 0.3121227	Val Loss: 1.7866449	Train Acc: 1.0000000	Val Acc: 0.8000000
+	Epoch: 004	Train Loss: 0.2198334	Val Loss: 1.5905356	Train Acc: 1.0000000	Val Acc: 0.8000000
+	Epoch: 005	Train Loss: 0.1694308	Val Loss: 1.4767997	Train Acc: 1.0000000	Val Acc: 0.8000000
+Fold: 000, Time: 15.082 s	Fold Train Acc: 1.0000000	Fold Val Acc: 0.8000000
+	Epoch: 001	Train Loss: 0.7468283	Val Loss: 0.1552967	Train Acc: 0.0625000	Val Acc: 1.0000000
+	Epoch: 002	Train Loss: 0.6267154	Val Loss: 0.2094657	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.5257905	Val Loss: 0.1892150	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.5024055	Val Loss: 0.2194613	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 005	Train Loss: 0.3737178	Val Loss: 0.2401904	Train Acc: 1.0000000	Val Acc: 1.0000000
+Fold: 001, Time: 13.423 s	Fold Train Acc: 0.7750000	Fold Val Acc: 1.0000000
+	Epoch: 001	Train Loss: 0.7196251	Val Loss: 0.2199379	Train Acc: 0.2500000	Val Acc: 1.0000000
+	Epoch: 002	Train Loss: 0.5803057	Val Loss: 0.1952275	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.5314492	Val Loss: 0.2231128	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.4545293	Val Loss: 0.2108671	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 005	Train Loss: 0.4643838	Val Loss: 0.2171373	Train Acc: 0.9375000	Val Acc: 1.0000000
+Fold: 002, Time: 13.282 s	Fold Train Acc: 0.8000000	Fold Val Acc: 1.0000000
+	Epoch: 001	Train Loss: 0.6982716	Val Loss: 0.1665034	Train Acc: 0.5000000	Val Acc: 1.0000000
+	Epoch: 002	Train Loss: 0.5931906	Val Loss: 0.1852362	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.5304648	Val Loss: 0.2078757	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.4872852	Val Loss: 0.2276150	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 005	Train Loss: 0.4411791	Val Loss: 0.2418517	Train Acc: 0.9375000	Val Acc: 1.0000000
+Fold: 003, Time: 13.383 s	Fold Train Acc: 0.8500000	Fold Val Acc: 1.0000000
+	Epoch: 001	Train Loss: 0.6785014	Val Loss: 0.1099354	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 002	Train Loss: 0.5443801	Val Loss: 0.0621474	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.4636738	Val Loss: 0.0475624	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.4773814	Val Loss: 0.0702087	Train Acc: 0.9375000	Val Acc: 1.0000000
+	Epoch: 005	Train Loss: 0.3035180	Val Loss: 0.0980807	Train Acc: 1.0000000	Val Acc: 1.0000000
+Fold: 004, Time: 13.100 s	Fold Train Acc: 0.9500000	Fold Val Acc: 1.0000000
+Total Cross Val Train Acc: 0.8750000	Total Cross Val Test Acc: 0.9600000
+	Epoch: 001	Train Loss: 0.6779437	Val Loss: 0.9518850	Train Acc: 0.6500000	Val Acc: 0.8000000
+	Epoch: 002	Train Loss: 0.6178526	Val Loss: 0.7823591	Train Acc: 0.6500000	Val Acc: 0.6000000
+	Epoch: 003	Train Loss: 0.7503319	Val Loss: 0.6920048	Train Acc: 0.7500000	Val Acc: 0.6000000
+	Epoch: 004	Train Loss: 0.6118975	Val Loss: 0.6796622	Train Acc: 0.8000000	Val Acc: 0.6000000
+	Epoch: 005	Train Loss: 0.6546808	Val Loss: 0.6951543	Train Acc: 0.8000000	Val Acc: 0.6000000
+Fold: 000, Time: 17.953 s	Fold Train Acc: 0.7300000	Fold Val Acc: 0.6400000
+	Epoch: 001	Train Loss: 0.7155806	Val Loss: 0.6989247	Train Acc: 0.6000000	Val Acc: 0.4000000
+	Epoch: 002	Train Loss: 0.6342579	Val Loss: 0.5529388	Train Acc: 0.7500000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.6092342	Val Loss: 0.5421248	Train Acc: 0.7000000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.6175034	Val Loss: 0.5229474	Train Acc: 0.6500000	Val Acc: 0.8000000
+	Epoch: 005	Train Loss: 0.5749922	Val Loss: 0.5046048	Train Acc: 0.7500000	Val Acc: 0.8000000
+Fold: 001, Time: 15.734 s	Fold Train Acc: 0.6900000	Fold Val Acc: 0.8000000
+	Epoch: 001	Train Loss: 0.6926189	Val Loss: 0.4760106	Train Acc: 0.7500000	Val Acc: 0.8000000
+	Epoch: 002	Train Loss: 0.6744834	Val Loss: 0.4202493	Train Acc: 0.5500000	Val Acc: 1.0000000
+	Epoch: 003	Train Loss: 0.6076953	Val Loss: 0.5031042	Train Acc: 0.6500000	Val Acc: 0.8000000
+	Epoch: 004	Train Loss: 0.5776767	Val Loss: 0.6720577	Train Acc: 0.5500000	Val Acc: 0.6000000
+	Epoch: 005	Train Loss: 0.5179949	Val Loss: 0.7362930	Train Acc: 0.7500000	Val Acc: 0.6000000
+Fold: 002, Time: 15.773 s	Fold Train Acc: 0.6500000	Fold Val Acc: 0.7600000
+	Epoch: 001	Train Loss: 0.6836445	Val Loss: 0.4815314	Train Acc: 0.4500000	Val Acc: 0.8000000
+	Epoch: 002	Train Loss: 0.6333124	Val Loss: 0.4227001	Train Acc: 0.5500000	Val Acc: 0.8000000
+	Epoch: 003	Train Loss: 0.6165461	Val Loss: 0.4129889	Train Acc: 0.6000000	Val Acc: 1.0000000
+	Epoch: 004	Train Loss: 0.5596752	Val Loss: 0.4465582	Train Acc: 0.5500000	Val Acc: 1.0000000
+	Epoch: 005	Train Loss: 0.5262225	Val Loss: 0.5082294	Train Acc: 0.6000000	Val Acc: 0.6000000
+Fold: 003, Time: 15.805 s	Fold Train Acc: 0.5500000	Fold Val Acc: 0.8400000
+	Epoch: 001	Train Loss: 0.7061594	Val Loss: 3.1017370	Train Acc: 0.2000000	Val Acc: 0.8000000
+	Epoch: 002	Train Loss: 0.5724508	Val Loss: 3.4552133	Train Acc: 0.7000000	Val Acc: 0.8000000
+	Epoch: 003	Train Loss: 0.5266082	Val Loss: 3.5309503	Train Acc: 0.7500000	Val Acc: 0.4000000
+	Epoch: 004	Train Loss: 0.5063623	Val Loss: 3.3043942	Train Acc: 0.8000000	Val Acc: 0.4000000
+	Epoch: 005	Train Loss: 0.4876450	Val Loss: 2.4238820	Train Acc: 0.8500000	Val Acc: 0.4000000
+Fold: 004, Time: 15.820 s	Fold Train Acc: 0.6600000	Fold Val Acc: 0.5600000
+Total Cross Val Train Acc: 0.6560000	Total Cross Val Test Acc: 0.7200000

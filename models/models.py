@@ -25,6 +25,21 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
+class SLDropout(torch.nn.Module):
+    def __init__(self, encoder):
+        super(SLDropout, self).__init__()
+        self.encoder = encoder
+        self.feature_length = encoder.out_dim
+        self.linear_layers = Sequential(
+            ReLU(inplace=True), Dropout(0.2), Linear(self.feature_length, 2)
+        )
+
+
+    def forward(self, x):
+        x = self.encoder(x)
+        return self.linear_layers(x)
+
+
 
 class ResNetSimCLR(torch.nn.Module):
 
@@ -38,10 +53,10 @@ class ResNetSimCLR(torch.nn.Module):
         num_ftrs = resnet.fc.in_features
 
         self.features = Sequential(*list(resnet.children())[:-1])
-
+        self.out_dim = out_dim
         # projection MLP
         self.l1 = Linear(num_ftrs, num_ftrs)
-        self.l2 = Linear(num_ftrs, out_dim)
+        self.l2 = Linear(num_ftrs, self.out_dim)
 
     def _get_basemodel(self, model_name):
         try:

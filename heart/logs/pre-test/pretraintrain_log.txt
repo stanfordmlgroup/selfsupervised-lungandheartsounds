@@ -1,0 +1,27 @@
+	Epoch: 001	Train Loss: 2.8308525	Val Loss: 2.5077656
+	Epoch: 001	Train Loss: 2.2484362	Val Loss: 2.2499576
+	cosine lr decay: 0.0003000
+	Epoch: 002	Train Loss: 2.0962980	Val Loss: 2.1071271
+	cosine lr decay: 0.0003000
+	Epoch: 003	Train Loss: 2.0284767	Val Loss: 2.1022337
+	cosine lr decay: 0.0003000
+	Epoch: 004	Train Loss: 1.9940803	Val Loss: 2.0472454
+	cosine lr decay: 0.0003000
+	Epoch: 005	Train Loss: 1.9442662	Val Loss: 1.9973058
+Pre-train KNN Evaluation Score: 0.8342967
+	cosine lr decay: 0.0003000
+	Epoch: 006	Train Loss: 2.2064652	Val Loss: 2.0371830
+	cosine lr decay: 0.0003000
+	Epoch: 007	Train Loss: 1.9117415	Val Loss: 1.9257647
+	cosine lr decay: 0.0003000
+	Epoch: 008	Train Loss: 1.8942941	Val Loss: 1.9780658
+	cosine lr decay: 0.0003000
+	Epoch: 009	Train Loss: 1.8476079	Val Loss: 1.9564034
+	cosine lr decay: 0.0003000
+	Epoch: 010	Train Loss: 1.8238502	Val Loss: 1.9135233
+Pre-train KNN Evaluation Score: 0.8362235
+	cosine lr decay: 0.0002999
+	Epoch: 011	Train Loss: 1.9916245	Val Loss: 1.9896712
+	cosine lr decay: 0.0002997
+	Epoch: 012	Train Loss: 1.8432162	Val Loss: 1.9193906
+	cosine lr decay: 0.0002994
