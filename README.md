@@ -7,16 +7,25 @@
     - Extest (648 samples {324 of each}), Train (2592 samples) {Internal Test/Fine-Tune (648 samples {324 of each})}
     - [dataset](https://physionet.org/content/challenge-2016/1.0.0/) 
 - Heart (Peter J Bentley)
-    - Normal v Abnormal (493/327)
-        - Abnormal: Artifact: 56, Extrasound: 27, Extrastole: 66, Murmur: 178
-    - Extest (164 samples {82 of each}), Internal Test/Fine-Tune (703 samples)
+    - Normal v Abnormal (493/271)
+        - Abnormal: Artifact: 56, Extrasound: 27, Extrastole: 66, Murmur: 178 (Artifacts dropped)
+    - Extest (152 samples {76 of each}), Internal Test/Fine-Tune (612 samples)
     - [dataset](http://www.peterjbentley.com/heartchallenge/) 
-- Lung sounds
+- Lung sounds (disease)
     - Normal v Abnormal (26/100)
         - Abnormal: COPD: 64, Healthy: 26, URTI: 14, Bronchiectasis: 7, Bronchiolitis: 6, Pneumonia: 6, LRTI: 2, Asthma: 1
     - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
     - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
-
+- Lung sounds (crackles)
+    - Normal v Abnormal (4528/2370)
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
+    - *Splits by patient not by sample*
+    - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
+- Lung sounds (wheezes)
+    - Normal v Abnormal (5506/1392)
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
+    - *Splits by patient not by sample*
+    - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
 ## Utility scripts & methods w/ relevant usage examples
 ### process.py
 Provides functionality to take raw audio and text files and generate a processed dir (_path_/processed) with audio files spliced by respiratory cycle. Also generates disease_labels.csv (mapped disease diagnoses) and symptoms_labels.csv (presence of crackles/wheezes for each respiratory file)  

@@ -25,3 +25,5 @@ Pre-train KNN Evaluation Score: 0.8362235
 	cosine lr decay: 0.0002997
 	Epoch: 012	Train Loss: 1.8432162	Val Loss: 1.9193906
 	cosine lr decay: 0.0002994
+	Epoch: 001	Train Loss: 1.5258901	Val Loss: 1.7144536
+	cosine lr decay: 0.0003000

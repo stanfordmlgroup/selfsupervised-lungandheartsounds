@@ -95,7 +95,7 @@ def contrastive_split(input_path='../', seed=252):
         random.seed(seed)
     # lungs
     print('lungs')
-    diag_csv = os.path.join(input_path, 'data', 'processed', 'disease_labels.csv')
+    diag_csv = os.path.join(input_path, 'data', 'old_splits', 'disease_labels.csv')
     diagnosis = pd.read_csv(diag_csv)
     diagnosis.reindex(columns=['ID', 'cycle', 'diagnosis', 'label'])
 
@@ -105,7 +105,31 @@ def contrastive_split(input_path='../', seed=252):
         else:
             diagnosis.at[i, "label"] = 1
     diagnosis = diagnosis[['ID', 'cycle', 'label']].rename(columns={"label": "diagnosis"})
-    diagnosis.to_csv(os.path.join(input_path, 'data', 'processed', 'lung_labels.csv'), index=False)
+    diagnosis.to_csv(os.path.join(input_path, 'data', 'processed', 'disease_labels.csv'), index=False)
+
+    symptom_csv = os.path.join(input_path, 'data', 'old_splits', 'symptom_labels.csv')
+    symptom = pd.read_csv(symptom_csv)
+    crackles = symptom[['ID', 'cycle', 'crackles']].reindex(columns=['ID', 'cycle', 'crackles', 'label'])
+    wheezes = symptom[['ID', 'cycle', 'wheezes']].reindex(columns=['ID', 'cycle', 'wheezes', 'label'])
+
+    for i, row in crackles.iterrows():
+        if row["crackles"] == 0:
+            crackles.at[i, "label"] = -1
+        else:
+            crackles.at[i, "label"] = 1
+    for i, row in wheezes.iterrows():
+        if row["wheezes"] == 0:
+            wheezes.at[i, "label"] = -1
+        else:
+            wheezes.at[i, "label"] = 1
+    crackles = crackles[['ID', 'cycle', 'label']].rename(columns={"label": "diagnosis"}).astype({'ID':'float64'})
+    wheezes = wheezes[['ID', 'cycle', 'label']].rename(columns={"label": "diagnosis"}).astype({'ID':'float64'})
+    # print(crackles.groupby("diagnosis").size())
+    # print(wheezes.groupby("diagnosis").size())
+    crackles.to_csv(os.path.join(input_path, 'data', 'processed', 'crackle_labels.csv'), index=False)
+    wheezes.to_csv(os.path.join(input_path, 'data', 'processed', 'wheeze_labels.csv'), index=False)
+
+
     ds = list(diagnosis['diagnosis'].unique())
     pIdbydiagnosis = {}
     train_list = []
@@ -139,11 +163,17 @@ def contrastive_split(input_path='../', seed=252):
     print('\nheartchallenge')
     diag_csv = os.path.join(input_path, 'heartchallenge', 'old_splits', 'heartchallenge_labels.csv')
     diagnosis = pd.read_csv(diag_csv).drop_duplicates(subset=["ID"]).reset_index()[["ID", "label"]]
+    artifact_rows = []
     for i, row in diagnosis.iterrows():
         if row["label"] == "Normal":
             diagnosis.at[i, "label"] = -1
+        elif row["label"] == "Artifact":
+            artifact_rows.append(i)
         else:
             diagnosis.at[i, "label"] = 1
+
+    diagnosis=diagnosis.drop(artifact_rows).reset_index()
+    #print(diagnosis.groupby("label").size())
     diagnosis.to_csv(os.path.join(input_path, 'heartchallenge', 'processed', 'heartchallenge_labels.csv'), index=False)
     ds = list(diagnosis['label'].unique())
     pIdbydiagnosis = {}
@@ -157,7 +187,7 @@ def contrastive_split(input_path='../', seed=252):
     fi.make_path(os.path.join(input_path, 'heartchallenge', 'splits'))
     train_split = os.path.join(input_path, 'heartchallenge', 'splits', 'train.txt')
     test_split = os.path.join(input_path, 'heartchallenge', 'splits', 'test.txt')
-    distribution_dict = {-1: 82, 1: 82}
+    distribution_dict = {-1: 76, 1: 76}
     with open(test_split, "w") as test:
         test_list = []
         # take a random sample for each label

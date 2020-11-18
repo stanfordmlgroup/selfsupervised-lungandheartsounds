@@ -50,11 +50,13 @@ def chroma(file_name=None):
     return chroma
 
 
-def mel(file_name=None):
+def mel(file_name=None, raw_augment = None):
     """Mel spectrogram"""
     if file_name:
         _, sample_rate = sf.read(file_name, dtype='float32')
     x = preprocess(file_name)
+    if raw_augment is not None:
+        x = raw_augment(x, sample_rate)
     mel = librosa.feature.melspectrogram(x, sr=sample_rate).T
     return mel
 
