@@ -1,28 +1,30 @@
-from models import ResNetSimCLR, SLDropout
+from models import ResNetSimCLR, SL
 import os
 import time
 import numpy as np
 import datetime
 import argparse
 import torch
-from torch.nn import CrossEntropyLoss
+from torch.nn import BCEWithLogitsLoss
 from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
+from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
 from sklearn.dummy import DummyClassifier
 from glob import glob
-from scipy.special import softmax
+from scipy.special import expit
 import torch.nn.functional as F
 from data import get_data_loader, get_dataset, get_scikit_loader
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 import joblib
 import sys
+from sklearn import preprocessing
+from matplotlib import pyplot as plt
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 import loss as lo
 import labels as la
-from loss import NTXentLoss
+from loss import NTXentLoss, WeightedFocalLoss
 import random
 
 
@@ -49,13 +51,17 @@ class ContrastiveLearner(object):
 
     def pre_train(self, log_file, task, label_file, augment=None):
         df = self.dataset.labels.reset_index()
+        data = self.dataset.data
         train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
+        select = np.in1d(range(data.shape[0]), train_list)
         train_df = df[df.index.isin(train_list)]
+        train_data = data[select]
+        test_data = data[~select]
         test_df = df[~df.index.isin(train_list)]
-        train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pre-train",
-                                       df=train_df, transform=augment)
-        valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pre-train",
-                                       df=test_df, transform=augment)
+        train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
+                                       df=train_df, transform=augment, data=train_data)
+        valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
+                                       df=test_df, transform=augment, data=test_data)
 
         if self.model is not None:
             model = self.model
@@ -68,7 +74,7 @@ class ContrastiveLearner(object):
                                                                last_epoch=-1)
 
         best_valid_loss = np.inf
-
+        counter = 0
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
@@ -89,6 +95,9 @@ class ContrastiveLearner(object):
                 # save the model weights
                 best_valid_loss = valid_loss
                 torch.save(model.state_dict(), os.path.join(self.log_dir, 'encoder.pth'))
+                counter = 0
+            else:
+                counter += 1
             elapsed = time.time() - start
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch_counter, elapsed))
             print("\t\tTrain loss: {:.7f}\tVal loss: {:.7f}".format(epoch_loss, valid_loss))
@@ -101,10 +110,10 @@ class ContrastiveLearner(object):
 
             if epoch_counter % 5 == 0:
                 encoder = model.eval()
-                train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "pre-train", df=train_df,
-                                                     encoder=encoder)
-                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "pre-train", df=test_df,
-                                                   encoder=encoder)
+                train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
+                                                     encoder=encoder, data=train_data)
+                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
+                                                   encoder=encoder, data=test_data)
                 train_X = np.asarray(train_X)
                 train_y = np.asarray(train_y)
                 test_X = np.asarray(test_X)
@@ -113,9 +122,9 @@ class ContrastiveLearner(object):
                 evaluator.fit(train_X, train_y)
                 fold_train_acc = evaluator.score(test_X, test_y)
                 print(
-                    "Pre-train KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
+                    "pretrain KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
                 with open(log_file, "a+") as log:
-                    log.write("Pre-train KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
+                    log.write("pretrain KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
 
             # warmup for the first 10 epochs
             if epoch_counter >= 10:
@@ -124,11 +133,19 @@ class ContrastiveLearner(object):
             print("\t\tcosine lr decay: {:.7f}".format(cosine_lr_decay))
             with open(log_file, "a+") as log:
                 log.write("\tcosine lr decay: {:.7f}\n".format(cosine_lr_decay))
+            if counter > 10:
+                print("Early stop...")
+                break
 
         return model
 
-    def fine_tune(self, n_splits, task, label_file, log_file, augment=None, encoder=None, evaluator_type=None, learning_rate=0.0):
+    def fine_tune(self, n_splits, task, label_file, log_file, augment=None, encoder=None, evaluator_type=None,
+                  learning_rate=0.0):
         df = self.dataset.labels
+        data = self.dataset.data
+        scaler = preprocessing.StandardScaler()
+        scaler.fit(data.reshape((data.shape[0], -1)))
+        scaler.transform(data)
         total_train_acc = 0
         total_test_acc = 0
         if len(df.index) > 10:
@@ -141,25 +158,28 @@ class ContrastiveLearner(object):
                 if i not in train_idx:
                     test_idx.append(i)
             indices = [(train_idx, test_idx)]
-            self.batch_size = 2
+            self.batch_size = 4
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
-        weights = 1.0 / weights
-        weights = weights / weights.sum()
-        loss = CrossEntropyLoss(weight=weights).to(self.device)
-
+        # weights = 1.0 / weights
+        # weights = weights / weights.sum()
+        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
         if encoder is not None:
             total_train_acc = 0
             for fold, (train_idx, test_idx) in enumerate(indices):
                 start_fold = time.time()
-                train_df = df.iloc[train_idx]
-                test_df = df.iloc[~train_idx]
 
+                train_df = df.iloc[train_idx]
+                test_df = df.iloc[test_idx]
+                train_data = data[train_idx]
+                test_data = data[test_idx]
                 if evaluator_type == "linear" or evaluator_type == "knn":
                     encoder.eval()
                     train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", train_df,
-                                                         encoder)
-                    test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "test", test_df,
-                                                       encoder)
+                                                         encoder, data=train_data)
+                    id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "test", test_df,
+                                                           encoder, data=test_data)
                     train_X = np.asarray(train_X)
                     train_y = np.asarray(train_y)
                     test_X = np.asarray(test_X)
@@ -167,25 +187,30 @@ class ContrastiveLearner(object):
                     if evaluator_type == "linear":
                         evaluator = LogisticRegression(class_weight="balanced", max_iter=10000)
                     elif evaluator_type == "knn":
-                        evaluator = KNeighborsClassifier(n_neighbors=10)
+                        n_neighbors = 10
+                        if n_neighbors > self.batch_size:
+                            n_neighbors = self.batch_size
+                        evaluator = KNeighborsClassifier(n_neighbors=n_neighbors)
                     evaluator.fit(train_X, train_y)
-                    fold_train_acc = evaluator.socer(train_X, train_y)
+                    fold_train_acc = evaluator.score(train_X, train_y)
                     fold_test_acc = evaluator.score(test_X, test_y)
                     joblib.dump(evaluator, os.path.join(log_dir, "evaluator_" + str(fold) + ".pkl"))
                 elif evaluator_type == "fine-tune":
-                    model = SLDropout(encoder).to(self.device)
+                    model = SL(encoder).to(self.device)
                     train_df = df.iloc[train_idx]
                     test_df = df.iloc[test_idx]
-                    train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", train_df)
-                    test_loader = get_data_loader(task, label_file, base_dir, 1, "test", test_df)
+                    train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
+                                                   data=train_data)
+                    test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
                     # learning_rate = learning_rate * 10.0
                     # print("LR: {:.7f}".format(learning_rate))
                     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
                     fold_train_acc = 0
                     fold_test_acc = 0
+                    counter = 0
+                    best_test_loss = np.inf
                     for epoch in range(1, self.epochs + 1):
-                        best_test_loss = 999999
                         start = time.time()
                         train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                          loss)
@@ -195,10 +220,14 @@ class ContrastiveLearner(object):
 
                         if test_loss < best_test_loss:
                             lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
+                            best_test_loss = test_loss
+                            counter = 0
+                        else:
+                            counter += 1
 
                         elapsed = time.time() - start
                         print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-                        print("\t\tTrain CE: {:.7f}\tVal CE: {:.7f}".format(train_loss, test_loss))
+                        print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
                         print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
                         with open(log_file, "a+") as log:
                             log.write(
@@ -209,8 +238,9 @@ class ContrastiveLearner(object):
 
                         fold_train_acc += train_accuracy
                         fold_test_acc += test_accuracy
-
-                    elapsed_fold = time.time() - start_fold
+                        # if counter >= 10:
+                        #     print("Early Stop...")
+                        #     break
 
                     fold_train_acc /= float(self.epochs)
                     fold_test_acc /= float(self.epochs)
@@ -246,20 +276,23 @@ class ContrastiveLearner(object):
             print("No encoder provided. Supervised Training...\n")
             for fold, (train_idx, test_idx) in enumerate(indices):
                 start_fold = time.time()
-                model = self.get_model(2)
+                model = self.get_model(1)
                 train_df = df.iloc[train_idx]
                 test_df = df.iloc[test_idx]
+                train_data = data[train_idx]
+                test_data = data[test_idx]
                 train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                               transform=augment)
-                test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df)
+                                               transform=augment, data=train_data)
+                test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
                 # learning_rate = learning_rate * 10.0
                 # print("LR: {:.7f}".format(learning_rate))
                 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
                 fold_train_acc = 0
                 fold_test_acc = 0
+                best_test_loss = np.inf
+                counter = 0
                 for epoch in range(1, self.epochs + 1):
-                    best_test_loss = 999999
                     start = time.time()
                     train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                      loss)
@@ -269,10 +302,14 @@ class ContrastiveLearner(object):
 
                     if test_loss < best_test_loss:
                         lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
+                        best_test_loss = test_loss
+                        counter = 0
+                    else:
+                        counter += 1
 
                     elapsed = time.time() - start
                     print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-                    print("\t\tTrain CE: {:.7f}\tVal CE: {:.7f}".format(train_loss, test_loss))
+                    print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
                     print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\n".format(train_accuracy, test_accuracy))
                     with open(log_file, "a+") as log:
                         log.write(
@@ -283,6 +320,9 @@ class ContrastiveLearner(object):
 
                     fold_train_acc += train_accuracy
                     fold_test_acc += test_accuracy
+                    if counter > 10:
+                        print("Early Stop...")
+                        break
 
                 elapsed_fold = time.time() - start_fold
 
@@ -317,60 +357,77 @@ class ContrastiveLearner(object):
     def test(self, task, label_file, log_file, encoder, evaluator_dir):
         _y_pred = []
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
-        weights = 1.0 / weights
-        weights = weights / weights.sum()
-        loss = CrossEntropyLoss(weight=weights).to(self.device)
-        labels = ["Abnormal", "Normal"]
+        # weights = 1.0 / weights
+        # weights = weights / weights.sum()
+        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+
+        labels = ["Normal", "Abnormal"]
+
+        scaler = preprocessing.StandardScaler()
+        data = self.dataset.data
+        scaler.fit(data.reshape((data.shape[0], -1)))
+        #scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
-        with open(log_file, "w+") as out:
+
+        with open(log_file, "a+") as out:
             if scikit_eval:
+                print('SK Model Test')
                 encoder.eval()
-                X, y = get_scikit_loader(self.device, task, label_file, base_dir, split="test", encoder=encoder)
+                id, X, y = get_scikit_loader(self.device, task, label_file, base_dir, split="test", encoder=encoder,
+                                             data=data)
                 X = np.asarray(X)
                 y = np.asarray(y)
                 y_true = y
                 for i, model_weights in enumerate(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))):
                     model = joblib.load(model_weights)
-                    y_pred = model.predict_proba(X)
+                    y_pred = model.predict_proba(X)[:, 1]
                     _y_pred.append(y_pred)
-                    loss = loss.cuda()
-                    ce = loss(torch.as_tensor(y_pred).float().to(self.device),
-                              torch.as_tensor(y).long().to(self.device))
-                    print("Model {} Test CE: {:.7f}".format(i, ce))
-                    out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
+                    # loss = loss.cuda()
+                    # ce = loss(torch.as_tensor(y_pred).to(self.device).view(-1).float(),
+                    #           torch.as_tensor(y).to(self.device).view(-1).float())
+                    # print("Model {} Test BCE: {:.7f}".format(i, ce))
+                    # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
             else:
                 for i, model_weights in enumerate(glob(os.path.join(evaluator_dir, "evaluator_*.pt"))):
-                    loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test")
+                    loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
+                                             data=data)
                     if encoder is None:
-                        model = self.get_model(2)
+                        model = self.get_model(1)
                         state_dict = torch.load(model_weights)
                         model.load_state_dict(state_dict)
                     else:
-                        model = SLDropout(encoder).to(self.device)
+                        model = SL(encoder).to(self.device)
                     model.eval()
-                    ce, y_true, y_pred = self._test(model, loader, self.device, loss)
-                    _y_pred.append(y_pred)
-                    print("Model {} Test CE: {:.7f}".format(i, ce))
-                    out.write("Model {} Test CE: {:.7f}\n".format(i, ce))
+                    ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+                    _y_pred.append(expit(y_pred))
+                    print("Model {} Test BCE: {:.7f}".format(i, ce))
+                    out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
             _y_pred = np.average(_y_pred, axis=0)
-            auc_cat = lo.auc_per_cat(y_true, softmax(_y_pred, axis=1), labels)
-            out.write("\nPer category AUC:")
-            print("\nPer category AUC:")
-            for key in auc_cat.keys():
-                out.write("{}: {:.3f}\n".format(key, auc_cat[key]))
-                print("{}: {:.3f}\n".format(key, auc_cat[key]))
-            roc_score = 1 - roc_auc_score(y_true, softmax(_y_pred, axis=1)[:, 0])
+            # auc_cat = lo.auc_per_cat(y_true, expit(_y_pred), labels)
+            # out.write("\nPer category AUC:")
+            # print("\nPer category AUC:")
+            # for key in auc_cat.keys():
+            # out.write("{}: {:.3f}\n".format(key, auc_cat[key]))
+            # print("{}: {:.3f}\n".format(key, auc_cat[key]))
+            print(y_true[:10], _y_pred[:10], min(y_true), max(y_true))
+            roc_score = roc_auc_score(y_true, _y_pred)
 
-            report = classification_report(y_true, np.argmax(_y_pred, axis=1), target_names=labels)
-            conf_matrix = confusion_matrix(y_true, np.argmax(_y_pred, axis=1))
+            fpr, tpr, _ = roc_curve(y_true, _y_pred)
+            plt.plot(fpr, tpr, marker='.')
+            plt.show()
+
+            report = classification_report(y_true, np.round(_y_pred), target_names=labels)
+            conf_matrix = confusion_matrix(y_true, np.round(_y_pred))
             print("Ensemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(roc_score, report, conf_matrix))
             out.write(
                 "Seed: {}\tFolds: {}\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed, i + 1,
                                                                                                     roc_score, report,
                                                                                                     conf_matrix))
 
-            scikit_X, scikit_y = get_scikit_loader(self.device, task, label_file, base_dir, split="test")
+            id, scikit_X, scikit_y = get_scikit_loader(self.device, task, label_file, base_dir, split="test")
             baseline = DummyClassifier(strategy="most_frequent")
             baseline.fit(scikit_X, scikit_y)
             baseline_pred = baseline.predict(scikit_X)
@@ -384,9 +441,9 @@ class ContrastiveLearner(object):
         try:
             state_dict = torch.load(os.path.join(self.log_dir, 'encoder.pth'))
             model.load_state_dict(state_dict)
-            print("Loaded pre-trained model with success.")
+            print("Loaded pretrained model with success.")
         except FileNotFoundError:
-            print("Pre-trained weights not found.")
+            print("pretrained weights not found.")
 
         return model
 
@@ -396,48 +453,52 @@ class ContrastiveLearner(object):
         y_pred = []
         for i, data in enumerate(loader):
             X, y = data
-            X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
+            X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             optimizer.zero_grad()
-            output = model(X)
-            train_loss = loss(output, y)
+            output = model(X).float()
+            train_loss = loss(output.view(-1), y.view(-1))
             y_true.extend(y.tolist())
             y_pred.extend(output.tolist())
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
 
-        ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
+        ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
 
         return ce, y_true, y_pred
 
     @torch.no_grad()
-    def _test(arch, model, loader, device, loss):
+    def _test(arch, model, loader, device, loss, log_file=None):
 
         model.eval()
         y_true = []
         y_pred = []
+        if log_file is not None:
+            with open(log_file, 'w') as f:
+                f.write("ID,pred_proba,label\n")
         for i, data in enumerate(loader):
-            X, y = data
+            id, X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
             output = model(X)
+
+            if log_file is not None:
+                with open(log_file, 'a+') as f:
+                    f.write('{},{:.3f},{}\n'.format(id[0], expit(output.cpu()).item(), y.item()))
+
             y_true.extend(y.tolist())
-            if X.shape[0] == 1:
-                y_pred.append(output.tolist())
-            else:
-                y_pred.extend(output.tolist())
-        ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
-        print()
+            y_pred.extend(output.tolist())
+
+        ce = loss(torch.tensor(y_pred).to(device).float().view(-1),
+                  torch.tensor(y_true).to(device).unsqueeze(1).float().view(-1))
         return ce, y_true, y_pred
 
     def _step(self, model, xis, xjs):
-        xis=xis.view(xis.shape[0], 1, xis.shape[1], xis.shape[2]).to(self.device)
-        xjs=xjs.view(xjs.shape[0], 1, xjs.shape[1], xjs.shape[2]).to(self.device)
+        xis = xis.view(xis.shape[0], 1, xis.shape[1], xis.shape[2]).to(self.device)
+        xjs = xjs.view(xjs.shape[0], 1, xjs.shape[1], xjs.shape[2]).to(self.device)
         # get the representations and the projections
         zis = model(xis)  # [N,C]
-
         # get the representations and the projections
         zjs = model(xjs)  # [N,C]
-
         # normalize projection feature vectors
         zis = F.normalize(zis, dim=1)
         zjs = F.normalize(zjs, dim=1)
@@ -464,10 +525,10 @@ class ContrastiveLearner(object):
         return valid_loss
 
 
-def pretrain_(task, base_dir, log_dir, augment, train_prop=1):
+def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
     log_file = os.path.join(log_dir, f"pretraintrain_log.txt")
 
-    num_epochs = 100
+    num_epochs = epochs
     batch_size = 16
     if train_prop == .01:
         batch_size = 5
@@ -480,19 +541,20 @@ def pretrain_(task, base_dir, log_dir, augment, train_prop=1):
         f.write(f"Proportion of training data: {train_prop}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
-    dataset = get_dataset(task, label_file, base_dir, split="pre-train", train_prop=train_prop)
+    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     learner.pre_train(log_file, task, label_file, augment)
 
 
-def train_(task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1):
+def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
-    num_epochs = 100
+    num_epochs = epochs
     batch_size = 16
     learning_rate = 0.0001
-
+    if evaluator is not None:
+        print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
         f.write(f"Folds: {folds}\n")
         f.write(f"Epochs: {num_epochs}\n")
@@ -517,7 +579,7 @@ def train_(task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1):
 def test_(task, base_dir, log_dir, seed=None):
     log_file = os.path.join(log_dir, f"test_log.txt")
     with open(log_file, "w") as f:
-        f.write(f"Folds: {seed}\n")
+        f.write(f"Seed: {seed}\n")
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
     dataset = get_dataset(task, label_file, base_dir, split="test")
     learner = ContrastiveLearner(dataset, 0, 1, log_dir)
@@ -532,21 +594,22 @@ def test_(task, base_dir, log_dir, seed=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="train", choices={"pre-train", "train", "test"})
+    parser.add_argument("--mode", type=str, default="train", choices={"pretrain", "train", "test"})
     parser.add_argument("--task", type=str, default=None,
                         choices={"disease", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune"})
-    parser.add_argument("--augment", type=str, default=None, choices={"split", "raw", "spec", "raw+spec"})
+    parser.add_argument("--augment", type=str, default=None, choices={"split", "raw", "spec", "spec+split"})
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--train_prop", type=float, default=1.0)
+    parser.add_argument("--epochs", type=int, default=100)
     args = parser.parse_args()
 
     base_dir = os.path.join(os.getcwd(), args.data)
     log_dir = args.log_dir
 
-    if args.mode == "pre-train":
+    if args.mode == "pretrain":
         if log_dir is None:
             now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             log_dir = os.path.join(base_dir, "logs", now)
@@ -555,7 +618,7 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        pretrain_(args.task, base_dir, log_dir, args.augment, args.train_prop)
+        pretrain_(args.epochs, args.task, base_dir, log_dir, args.augment, args.train_prop)
     elif args.mode == "train":
         if log_dir is None:
             now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -565,9 +628,11 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        train_(args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop)
+        train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop)
     elif args.mode == "test":
-        seed = np.random.randint(0, 1000)
+        seed = 0
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         print("seed:", seed)
         if log_dir is not None:
             log_dir = os.path.join(base_dir, "logs", log_dir)

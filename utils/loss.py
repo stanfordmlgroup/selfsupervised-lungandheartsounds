@@ -2,7 +2,9 @@ import torch
 import numpy as np
 from torch.nn import Linear, Conv2d
 from sklearn.metrics import roc_auc_score
-
+import torch.nn.functional as F
+import torch.nn as nn
+from scipy.special import expit
 
 class NTXentLoss(torch.nn.Module):
 
@@ -86,4 +88,26 @@ def auc_per_cat(true, pred, labels):
 
 
 def get_accuracy(labels, preds):
-    return sum([np.argmax(pred) == label for label, pred in zip(labels, preds)]) / len(labels)
+    try:
+        return sum([np.round(pred) == label for label, pred in zip(labels, preds)]).item() / len(labels)
+    except:
+        return sum([np.round(pred) == label for label, pred in zip(labels, preds)]) / len(labels)
+
+
+class WeightedFocalLoss(nn.Module):
+    """Non weighted version of Focal Loss"""
+    # gamma vals: disease: 20, heart
+    def __init__(self, alpha=.25, gamma=0):
+        super(WeightedFocalLoss, self).__init__()
+        self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
+        self.gamma = gamma
+
+    def forward(self, inputs, targets):
+        print(expit(inputs.cpu().detach().numpy()))
+        #print(self.alpha)
+        BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
+        targets = targets.type(torch.long)
+        at = self.alpha.gather(0, targets.data.view(-1))
+        pt = torch.exp(-BCE_loss)
+        F_loss = at * (1 - pt) ** self.gamma * BCE_loss
+        return F_loss.mean()

@@ -74,7 +74,8 @@ target/
 
 /data.tar
 *.zip
-
+*.h5
+*/logs
 /disease/data/processed/*
 /data/audio_and_txt_files/
 /data/processed/Other/

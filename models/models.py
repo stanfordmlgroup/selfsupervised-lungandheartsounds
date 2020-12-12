@@ -4,7 +4,8 @@ import numpy as np
 import datetime
 import argparse
 import torch
-from torch.nn import Sequential, Linear, ReLU, DataParallel, Conv2d, LeakyReLU, MaxPool2d, Dropout, CrossEntropyLoss
+from torch.nn import Sequential, Linear, ReLU, DataParallel, Conv2d, LeakyReLU, MaxPool2d, Dropout, CrossEntropyLoss, \
+    Softmax
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
 from sklearn.dummy import DummyClassifier
@@ -16,6 +17,7 @@ import torchvision.models as models
 import torch.nn.functional as F
 from data import get_data_loader, get_dataset, get_scikit_loader
 import sys
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 import loss as lo
@@ -25,20 +27,26 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
-class SLDropout(torch.nn.Module):
+
+class SL(torch.nn.Module):
     def __init__(self, encoder):
-        super(SLDropout, self).__init__()
+        super(SL, self).__init__()
         self.encoder = encoder
         self.feature_length = encoder.out_dim
         self.linear_layers = Sequential(
-            ReLU(inplace=True), Dropout(0.2), Linear(self.feature_length, 2)
+            torch.nn.Linear(self.feature_length, self.feature_length, bias=False),
+            torch.nn.BatchNorm1d(self.feature_length),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.Linear(self.feature_length, 1, bias=True)
         )
-
 
     def forward(self, x):
         x = self.encoder(x)
-        return self.linear_layers(x)
-
+        if len(x.shape)==1:
+            x=x.unsqueeze(0)
+        x = self.linear_layers(x)
+        x = x.view(-1)
+        return x
 
 
 class ResNetSimCLR(torch.nn.Module):
@@ -115,7 +123,7 @@ class CNN(torch.nn.Module):
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        #print(x.shape)
+        # print(x.shape)
         x = self.linear_layers(x)
         return x
 
@@ -152,7 +160,7 @@ class CNNlight(torch.nn.Module):
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        #print(x.shape)
+        # print(x.shape)
         x = self.linear_layers(x)
         return x
 
@@ -182,7 +190,7 @@ def train(epoch, arch, model, loader, optimizer, device, loss):
             else:
                 model.fit(X, y, init_model=model)
 
-            output = model.predict(X,raw_score=True)
+            output = model.predict(X, raw_score=True)
             y_true.extend(y.tolist())
             y_pred.extend(output.tolist())
     ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
@@ -206,7 +214,7 @@ def test(arch, model, loader, device, loss):
             y_pred.extend(output.tolist())
         elif arch == "lgbm":
             X, y = np.asarray(X).reshape(X.shape[0], X.shape[1] * X.shape[2]), np.asarray(y)
-            output = model.predict_proba(X,raw_score=True)
+            output = model.predict_proba(X, raw_score=True)
             y_true.extend(y.tolist())
             y_pred.extend(output.tolist())
     ce = loss(torch.tensor(y_pred).to(device), torch.tensor(y_true).to(device))
@@ -266,7 +274,6 @@ def train_(task, architecture, base_dir, device, log_dir, folds=5, train_prop=1)
         else:
             optimizer = None
         #    model.apply(weights_init)
-
 
         start_fold = time.time()
         train_df = df.iloc[train_idx]
@@ -350,11 +357,11 @@ def test_(task, architecture, base_dir, device, log_dir, seed=None):
     elif task == "heart":
         classes = 2
         labels = ["Abnormal", "Normal"]
-        batch_size=700
+        batch_size = 700
     elif task == "heartchallenge":
         classes = 5
         labels = ["Normal", "Murmur", "Extrastole", "Extrasound", "Artifact"]
-        batch_size=192
+        batch_size = 192
     test_file = os.path.join(log_dir, f"test_results.txt")
     _y_pred = []
     weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(device)
@@ -399,15 +406,20 @@ def test_(task, architecture, base_dir, device, log_dir, seed=None):
             print("{}: {:.3f}\n".format(key, auc_cat[key]))
 
         if task == "heart":
-            roc_score = roc_auc_score(y, softmax(_y_pred, axis=1)[:,0])
+            roc_score = roc_auc_score(y, softmax(_y_pred, axis=1)[:, 0])
         else:
             roc_score = roc_auc_score(y, softmax(_y_pred, axis=1), multi_class="ovr")
         report = classification_report(y, np.argmax(_y_pred, axis=1), target_names=labels)
-        conf_matrix=confusion_matrix(y, np.argmax(_y_pred, axis=1))
-        print("Ensemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(architecture, roc_score, report, conf_matrix))
+        conf_matrix = confusion_matrix(y, np.argmax(_y_pred, axis=1))
+        print("Ensemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(architecture, roc_score,
+                                                                                           report, conf_matrix))
         out.write(
-            "Seed: {}\tFolds: {}\nEnsemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed, i + 1, architecture,
-                                                                                       roc_score, report,conf_matrix))
+            "Seed: {}\tFolds: {}\nEnsemble {}:\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed,
+                                                                                                              i + 1,
+                                                                                                              architecture,
+                                                                                                              roc_score,
+                                                                                                              report,
+                                                                                                              conf_matrix))
 
         scikit_X, scikit_y = get_scikit_loader(task, label_file, base_dir, split="test")
         baseline = DummyClassifier(strategy="most_frequent")

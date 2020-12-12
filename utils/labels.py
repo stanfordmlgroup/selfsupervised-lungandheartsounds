@@ -98,9 +98,9 @@ def heartchallenge_one_hot(label):
 
 def heart_one_hot(label):
     if label == "Normal":
-        return 1
-    elif label == "Abnormal":
         return 0
+    elif label == "Abnormal":
+        return 1
 
 
 def heart_recover_label(label):

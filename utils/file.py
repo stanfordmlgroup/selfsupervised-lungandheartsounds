@@ -32,3 +32,4 @@ def get_filenames(search_dir, type_list):
 def make_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
+    return path

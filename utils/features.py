@@ -7,14 +7,16 @@ import argparse
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # prevents weird error with matplotlib
 vggish = torch.hub.load('harritaylor/torchvggish', 'vggish')
-    
+
+
 def get_vggish_embedding(filename=None):
     """takes in a raw wav file and converts it to a x*128 embedding, where x is the number of seconds in the clip."""
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     # vggish.to(device)
     vggish.eval()
     x = vggish.forward(filename)
-    return x.detach().numpy() 
+    return x.detach().numpy()
+
 
 def preprocess(file_name=None):
     """preprocessing of raw file for the below features"""
@@ -22,7 +24,7 @@ def preprocess(file_name=None):
 
     if x.ndim > 1: x = x[:, 0]
     x = x.T
-    return x
+    return x, sample_rate
 
 
 def stft(file_name=None):
@@ -50,15 +52,15 @@ def chroma(file_name=None):
     return chroma
 
 
-def mel(file_name=None, raw_augment = None):
-    """Mel spectrogram"""
-    if file_name:
-        _, sample_rate = sf.read(file_name, dtype='float32')
-    x = preprocess(file_name)
-    if raw_augment is not None:
-        x = raw_augment(x, sample_rate)
-    mel = librosa.feature.melspectrogram(x, sr=sample_rate).T
-    return mel
+class Mel(object):
+    def __init__(self, raw_aug=None):
+        self.raw_aug = raw_aug
+
+    def __call__(self, X, sample_rate=22050.0):
+        if self.raw_aug is not None:
+            X = self.raw_aug(X, sample_rate)
+        mel = librosa.feature.melspectrogram(X, sr=sample_rate).T
+        return mel
 
 
 def contrast(file_name=None):
@@ -87,7 +89,7 @@ def example(example_file):
     print("Size of STFT: " + str(stft(example_file).shape))
     print("Size of MFCCS: " + str(mfccs(example_file).shape))
     print("Size of Chroma: " + str(chroma(example_file).shape))
-    print("Size of Mel: " + str(mel(example_file).shape))
+    print("Size of Mel: " + str(Mel(example_file).shape))
     print("Size of Contrast: " + str(contrast(example_file).shape))
     print("Size of Tonnetz: " + str(tonnetz(example_file).shape))
 
