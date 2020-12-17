@@ -96,14 +96,13 @@ def get_accuracy(labels, preds):
 
 class WeightedFocalLoss(nn.Module):
     """Non weighted version of Focal Loss"""
-    # gamma vals: disease: 20, heart
-    def __init__(self, alpha=.25, gamma=0):
+    def __init__(self, alpha=.25, gamma=5):
         super(WeightedFocalLoss, self).__init__()
         self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
         self.gamma = gamma
 
     def forward(self, inputs, targets):
-        print(expit(inputs.cpu().detach().numpy()))
+        #print(expit(inputs.cpu().detach().numpy()))
         #print(self.alpha)
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
         targets = targets.type(torch.long)

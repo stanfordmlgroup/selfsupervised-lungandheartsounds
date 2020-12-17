@@ -112,7 +112,7 @@ class ContrastiveLearner(object):
                 encoder = model.eval()
                 train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
                                                      encoder=encoder, data=train_data)
-                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
+                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "test", df=test_df,
                                                    encoder=encoder, data=test_data)
                 train_X = np.asarray(train_X)
                 train_y = np.asarray(train_y)
@@ -215,6 +215,7 @@ class ContrastiveLearner(object):
                         train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                          loss)
                         test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                        train_pred, test_pred = expit(train_pred), expit(test_pred)
                         train_accuracy = lo.get_accuracy(train_true, train_pred)
                         test_accuracy = lo.get_accuracy(test_true, test_pred)
 
@@ -238,9 +239,9 @@ class ContrastiveLearner(object):
 
                         fold_train_acc += train_accuracy
                         fold_test_acc += test_accuracy
-                        # if counter >= 10:
-                        #     print("Early Stop...")
-                        #     break
+                        if counter >= 10:
+                            print("Early Stop...")
+                            break
 
                     fold_train_acc /= float(self.epochs)
                     fold_test_acc /= float(self.epochs)
@@ -297,6 +298,7 @@ class ContrastiveLearner(object):
                     train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                      loss)
                     test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                    train_pred, test_pred = expit(train_pred), expit(test_pred)
                     train_accuracy = lo.get_accuracy(train_true, train_pred)
                     test_accuracy = lo.get_accuracy(test_true, test_pred)
 
@@ -368,7 +370,7 @@ class ContrastiveLearner(object):
         scaler = preprocessing.StandardScaler()
         data = self.dataset.data
         scaler.fit(data.reshape((data.shape[0], -1)))
-        #scaler.transform(data)
+        scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
 
@@ -412,12 +414,12 @@ class ContrastiveLearner(object):
             # for key in auc_cat.keys():
             # out.write("{}: {:.3f}\n".format(key, auc_cat[key]))
             # print("{}: {:.3f}\n".format(key, auc_cat[key]))
-            print(y_true[:10], _y_pred[:10], min(y_true), max(y_true))
+            # print(y_true[:10], _y_pred[:10], min(_y_pred), max(_y_pred))
             roc_score = roc_auc_score(y_true, _y_pred)
 
-            fpr, tpr, _ = roc_curve(y_true, _y_pred)
-            plt.plot(fpr, tpr, marker='.')
-            plt.show()
+            # fpr, tpr, _ = roc_curve(y_true, _y_pred)
+            # plt.plot(fpr, tpr, marker='.')
+            # plt.show()
 
             report = classification_report(y_true, np.round(_y_pred), target_names=labels)
             conf_matrix = confusion_matrix(y_true, np.round(_y_pred))
@@ -462,7 +464,6 @@ class ContrastiveLearner(object):
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
-
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
 
         return ce, y_true, y_pred
@@ -532,7 +533,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
     batch_size = 16
     if train_prop == .01:
         batch_size = 5
-    learning_rate = 0.0001
+    learning_rate = .0001
 
     with open(os.path.join(log_dir, "pretrain_params.txt"), "w") as f:
         f.write(f"Epochs: {num_epochs}\n")
@@ -547,7 +548,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
     learner.pre_train(log_file, task, label_file, augment)
 
 
-def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1):
+def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
     num_epochs = epochs
@@ -564,7 +565,11 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
         f.write(f"Evaluator: {evaluator}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
-    dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
+    if not full_data:
+        dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
+    else:
+        dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
+
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
@@ -604,6 +609,7 @@ if __name__ == "__main__":
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--train_prop", type=float, default=1.0)
     parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--full_data", default=False)
     args = parser.parse_args()
 
     base_dir = os.path.join(os.getcwd(), args.data)
@@ -628,7 +634,8 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop)
+        train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop,
+               args.full_data)
     elif args.mode == "test":
         seed = 0
         torch.backends.cudnn.deterministic = True
@@ -641,6 +648,7 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
+        random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
         test_(args.task, base_dir, log_dir, seed)

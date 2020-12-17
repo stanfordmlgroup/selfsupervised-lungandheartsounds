@@ -69,8 +69,9 @@ class LungDataset(Dataset):
             IDs = set([line.strip() for line in f])
             df=df[df.ID.isin(IDs)]
             df=df.reset_index()
-            IDs = set(random.sample(IDs, int(train_prop * len(IDs))))
-        return df[df.ID.isin(IDs)]
+            cycles = set(list(df.cycle))
+            cycles = set(random.sample(cycles, int(train_prop * len(cycles))))
+        return df[df.cycle.isin(cycles)]
 
     def get_class_val(self, row):
         if self.task == "symptom":
@@ -294,7 +295,7 @@ def get_transform(augment=None):
 
 
 def process_data(mode, augment, X, y):
-    if mode == "pretrain":
+    if mode == "pretrain":#mode: pretrain, train, test
         xi = torch.Tensor(augment(X))
         xj = torch.Tensor(augment(X))
         return xi, xj
@@ -383,6 +384,7 @@ def h5ify(base_dir, label_file, train_prop):
     h5_dir = base_dir + "/processed/" + filename
     with h5.File(h5_dir,'w') as f:
         for split in __splits__:
+            print(split)
             audio_samples = []
             try:
                 df = pd.read_csv(label_file)
@@ -411,8 +413,8 @@ def h5ify(base_dir, label_file, train_prop):
 
 
 if __name__ == '__main__':
-    __tasks__ = ['heart', 'disease', 'crackle', 'wheeze', 'heartchallenge']
-    __train_props__ = [.01, .1, 1.0]
+    __tasks__ = ['disease', 'crackle', 'wheeze', 'heartchallenge']
+    __train_props__ = [1.0]
     for task in __tasks__:
         if task == 'disease' or task == 'crackle' or task == 'wheeze':
             base_dir = '../data'
