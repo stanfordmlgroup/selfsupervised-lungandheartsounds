@@ -35,7 +35,7 @@ class ContrastiveLearner(object):
         self.dataset = dataset
         self.epochs = epochs
         self.log_dir = log_dir
-        self.nt_xent_criterion = NTXentLoss(self.device, batch_size, .5, use_cosine_similarity=True)
+        self.nt_xent_criterion = NTXentLoss()
         self.model = model
         self.batch_size = batch_size
 
@@ -49,7 +49,7 @@ class ContrastiveLearner(object):
         model = self._load_pre_trained_weights(model)
         return model
 
-    def pre_train(self, log_file, task, label_file, augment=None):
+    def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0.):
         df = self.dataset.labels.reset_index()
         data = self.dataset.data
         train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
@@ -68,7 +68,7 @@ class ContrastiveLearner(object):
         else:
             model = self.get_model(out_dim=256)
 
-        optimizer = torch.optim.Adam(model.parameters(), 3e-4, weight_decay=10e-6)
+        optimizer = torch.optim.Adam(model.parameters(), learning_rate, weight_decay=10e-6)
 
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader), eta_min=0,
                                                                last_epoch=-1)
@@ -112,7 +112,7 @@ class ContrastiveLearner(object):
                 encoder = model.eval()
                 train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
                                                      encoder=encoder, data=train_data)
-                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "test", df=test_df,
+                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
                                                    encoder=encoder, data=test_data)
                 train_X = np.asarray(train_X)
                 train_y = np.asarray(train_y)
@@ -121,10 +121,12 @@ class ContrastiveLearner(object):
                 evaluator = KNeighborsClassifier(n_neighbors=10)
                 evaluator.fit(train_X, train_y)
                 fold_train_acc = evaluator.score(test_X, test_y)
+                roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:,1])
+                model.train()
                 print(
-                    "pretrain KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
+                    "pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc,roc_score))
                 with open(log_file, "a+") as log:
-                    log.write("pretrain KNN Evaluation Score: {:.7f}\n".format(fold_train_acc))
+                    log.write("pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc,roc_score))
 
             # warmup for the first 10 epochs
             if epoch_counter >= 10:
@@ -133,9 +135,9 @@ class ContrastiveLearner(object):
             print("\t\tcosine lr decay: {:.7f}".format(cosine_lr_decay))
             with open(log_file, "a+") as log:
                 log.write("\tcosine lr decay: {:.7f}\n".format(cosine_lr_decay))
-            if counter > 10:
-                print("Early stop...")
-                break
+            # if counter > 10:
+            #     print("Early stop...")
+            #     break
 
         return model
 
@@ -504,7 +506,8 @@ class ContrastiveLearner(object):
         zis = F.normalize(zis, dim=1)
         zjs = F.normalize(zjs, dim=1)
 
-        loss = self.nt_xent_criterion(zis, zjs)
+        inputs=torch.cat((zis,zjs)).view(zis.shape[0],2,-1)
+        loss = self.nt_xent_criterion(inputs)
         return loss
 
     def _validate(self, model, valid_loader):
@@ -545,7 +548,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
     dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
-    learner.pre_train(log_file, task, label_file, augment)
+    learner.pre_train(log_file, task, label_file, augment, learning_rate)
 
 
 def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
