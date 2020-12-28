@@ -54,19 +54,21 @@ class LungDatasetExp3(Dataset):
         self.transform = get_transform(transform)
         self.norm_func = transforms.Normalize([3.273], [100.439])
 
-        self.demo = pd.read_csv(os.path.join(base_dir, "demographics_MICE.csv"))
         self.exp = exp
-        if self.exp == 4:
-            self.only_adult = self.demo[self.demo['adult'] == "TRUE"]
-            self.only_child = self.demo[self.demo['adult'] == "FALSE"]
-        elif self.exp == 5 or self.exp == 6:
-            self.only_female = self.demo[self.demo['sex_female'] == 1]
-            self.only_male = self.demo[self.demo['sex_female'] == 0]
-        elif self.exp == 6:
-            self.only_male_adult = self.only_male[self.only_male['adult'] == "TRUE"]
-            self.only_male_child = self.only_male[self.only_male['adult'] == "FALSE"]
-            self.only_female_adult = self.only_female[self.only_female['adult'] == "TRUE"]
-            self.only_female_child = self.only_female[self.only_female['adult'] == "FALSE"]
+        if self.exp in [4, 5, 6]:
+            self.demo = pd.read_csv(os.path.join(base_dir, "demographics_MICE.csv"))
+            self.demo = self.demo[self.demo.pt_num.isin(list(self.ID_list))]
+            if self.exp == 4:
+                self.only_adult = self.demo[self.demo['adult']]
+                self.only_child = self.demo[self.demo['adult']]
+            elif self.exp == 5 or self.exp == 6:
+                self.only_female = self.demo[self.demo['sex_female'] == 1]
+                self.only_male = self.demo[self.demo['sex_female'] == 0]
+                if self.exp == 6:
+                    self.only_male_adult = self.only_male[self.only_male['adult']]
+                    self.only_male_child = self.only_male[self.only_male['adult']]
+                    self.only_female_adult = self.only_female[self.only_female['adult']]
+                    self.only_female_child = self.only_female[self.only_female['adult']]
 
     def __len__(self):
         return len(self.ID_list)
@@ -236,10 +238,9 @@ class LungDatasetExp3(Dataset):
 
             first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
             second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
-
-            if curr_demo['adult'] == "FALSE":  # Query format?
+            if list(curr_demo.adult)[0]:  # Query format?
                 y_val = 0
-            elif curr_demo['adult'] == "TRUE":
+            else:
                 y_val = 1
 
             first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
@@ -249,7 +250,7 @@ class LungDatasetExp3(Dataset):
         # Positive pair = same recording, negative pair = different recording w/ similar age (child vs. adult)
         elif self.exp == 4:
             curr_demo = self.demo[self.demo['pt_num'] == id]
-            if curr_demo.at[0, 'adult'] == "TRUE":
+            if list(curr_demo.adult)[0]:
                 is_adult = True
             else:
                 is_adult = False
@@ -257,24 +258,24 @@ class LungDatasetExp3(Dataset):
             pair_list = []  # (x1, x2, y) for 16
             # Generate batch of 16 people (15 others) with same age
             if is_adult:
-                sample_df = self.only_adult
+                sample_df = copy.deepcopy(self.only_adult)
             else:
-                sample_df = self.only_child
+                sample_df = copy.deepcopy(self.only_child)
+            sample_df = sample_df[sample_df.pt_num != id]
             batch_demo = sample_df.sample(15)
             # dummy y
             y_val = 0
 
             batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
             batch_ids.add(id)
-            while len(batch_ids) != 16:
-                batch_ids.add(list(sample_df.sample(1)[0].pt_num)[0])
             batch_ids = list(batch_ids)
             for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id]
+                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
                 cycles = cycles.reset_index()
                 cycles_copy = copy.deepcopy(cycles)
                 num_cycle = len(cycles)
                 if num_cycle == 0:
+                    print(curr_id)
                     raise Exception('must have at least one cycle')
                 elif num_cycle < 2:
                     first_ind = 0
@@ -295,8 +296,8 @@ class LungDatasetExp3(Dataset):
                 first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
                 second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
 
-                first_X, y1 = process_data("train", self.transform, first_cycle, y_val)
-                second_X, y1 = process_data("train", self.transform, second_cycle, y_val)
+                first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
 
                 pair_list.append((first_X, second_X))
             return pair_list
@@ -304,7 +305,7 @@ class LungDatasetExp3(Dataset):
         # Positive pair = same recording, negative pair = different recording w/ similar sex attributes
         elif self.exp == 5:
             curr_demo = self.demo[self.demo['pt_num'] == id]
-            if curr_demo.at[0, 'sex_female'] == 1:
+            if list(curr_demo.sex_female)[0] == 1:
                 is_female = True
             else:
                 is_female = False
@@ -312,20 +313,19 @@ class LungDatasetExp3(Dataset):
             pair_list = []  # (x1, x2, y) for 16
             # Generate batch of 16 people (15 others) with same sex
             if is_female:
-                sample_df = self.only_female
+                sample_df = copy.deepcopy(self.only_female)
             else:
-                sample_df = self.only_male
+                sample_df = copy.deepcopy(self.only_male)
+            sample_df = sample_df[sample_df.pt_num != id]
             batch_demo = sample_df.sample(15)
             # dummy y
             y_val = 0
 
             batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
             batch_ids.add(id)
-            while len(batch_ids) != 16:
-                batch_ids.add(list(sample_df.sample(1)[0].pt_num)[0])
             batch_ids = list(batch_ids)
             for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id]
+                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
                 cycles = cycles.reset_index()
                 cycles_copy = copy.deepcopy(cycles)
                 num_cycle = len(cycles)
@@ -350,8 +350,8 @@ class LungDatasetExp3(Dataset):
                 first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
                 second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
 
-                first_X, y1 = process_data("train", self.transform, first_cycle, y_val)
-                second_X, y1 = process_data("train", self.transform, second_cycle, y_val)
+                first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
 
                 pair_list.append((first_X, second_X))
             return pair_list
@@ -360,12 +360,12 @@ class LungDatasetExp3(Dataset):
         elif self.exp == 6:
             curr_demo = self.demo[self.demo['pt_num'] == id]
 
-            if curr_demo.at[0, 'sex_female'] == 1:
+            if list(curr_demo.sex_female)[0] == 1:
                 is_female = True
             else:
                 is_female = False
 
-            if curr_demo.at[0, 'adult'] == "TRUE":
+            if list(curr_demo.adult)[0]:
                 is_adult = True
             else:
                 is_adult = False
@@ -375,25 +375,27 @@ class LungDatasetExp3(Dataset):
             # Generate batch of 16 people (15 others) with same age
             if is_female:
                 if is_adult:
-                    sample_df = self.only_female_adult
+                    sample_df = copy.deepcopy(self.only_female_adult)
                 else:
-                    sample_df = self.only_female_child
+                    sample_df = copy.deepcopy(self.only_female_child)
             else:
                 if is_adult:
-                    sample_df = self.only_male_adult
+                    sample_df = copy.deepcopy(self.only_male_adult)
                 else:
-                    sample_df = self.only_male_child
-            batch_demo = sample_df.sample(15)
+                    sample_df = copy.deepcopy(self.only_male_child)
+            sample_df = sample_df[sample_df.pt_num != id]
+            try:
+                batch_demo = sample_df.sample(15)
+            except:
+                batch_demo = sample_df.sample(7)
             # dummy y
             y_val = 0
 
             batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
             batch_ids.add(id)
-            while len(batch_ids) != 16:
-                batch_ids.add(list(sample_df.sample(1)[0].pt_num)[0])
             batch_ids = list(batch_ids)
             for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id]
+                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
                 cycles = cycles.reset_index()
                 cycles_copy = copy.deepcopy(cycles)
                 num_cycle = len(cycles)
@@ -418,8 +420,8 @@ class LungDatasetExp3(Dataset):
                 first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
                 second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
 
-                first_X, y1 = process_data("train", self.transform, first_cycle, y_val)
-                second_X, y1 = process_data("train", self.transform, second_cycle, y_val)
+                first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
 
                 pair_list.append((first_X, second_X))
             return pair_list
