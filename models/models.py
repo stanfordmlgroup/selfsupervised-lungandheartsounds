@@ -28,9 +28,9 @@ torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
 
-class SL(torch.nn.Module):
+class SSL(torch.nn.Module):
     def __init__(self, encoder):
-        super(SL, self).__init__()
+        super(SSL, self).__init__()
         self.encoder = encoder
         self.feature_length = encoder.out_dim
         self.linear_layers = Sequential(

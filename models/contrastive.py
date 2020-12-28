@@ -1,4 +1,4 @@
-from models import ResNetSimCLR, SL
+from models import ResNetSimCLR, SSL
 import os
 import time
 import numpy as np
@@ -17,6 +17,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 import joblib
 import sys
+import copy
+
 from sklearn import preprocessing
 from matplotlib import pyplot as plt
 
@@ -24,6 +26,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 import loss as lo
 import labels as la
+import file as fi
 from loss import NTXentLoss, WeightedFocalLoss
 import random
 
@@ -38,6 +41,10 @@ class ContrastiveLearner(object):
         self.nt_xent_criterion = NTXentLoss()
         self.model = model
         self.batch_size = batch_size
+        try:
+            self.exp = dataset.exp
+        except:
+            self.exp = None
 
     def _get_device(self):
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -52,16 +59,21 @@ class ContrastiveLearner(object):
     def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0.):
         df = self.dataset.labels.reset_index()
         data = self.dataset.data
+        # scaler = preprocessing.StandardScaler()
+        # scaler.fit(data.reshape((data.shape[0], -1)))
+        # scaler.transform(data)
         train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
         select = np.in1d(range(data.shape[0]), train_list)
         train_df = df[df.index.isin(train_list)]
         train_data = data[select]
         test_data = data[~select]
         test_df = df[~df.index.isin(train_list)]
+        if self.exp in [2, 4, 5, 6]:
+            self.batch_size = 1
         train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
-                                       df=train_df, transform=augment, data=train_data)
+                                       df=train_df, transform=augment, data=train_data, exp=self.exp)
         valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
-                                       df=test_df, transform=augment, data=test_data)
+                                       df=test_df, transform=augment, data=test_data, exp=self.exp)
 
         if self.model is not None:
             model = self.model
@@ -74,30 +86,57 @@ class ContrastiveLearner(object):
                                                                last_epoch=-1)
 
         best_valid_loss = np.inf
-        counter = 0
+        best_auc = np.inf
+        fi.make_path(os.path.join(log_dir, 'checkpoints'))
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
             num_batches = len(train_loader)
-            for xis, xjs in train_loader:
-                optimizer.zero_grad()
-                xis = xis.to(self.device)
-                xjs = xjs.to(self.device)
+            if self.exp in [2, 4, 5, 6]:
+                for data in train_loader:
+                    xis, xjs = [], []
+                    for sample in data:
+                        xis.append(sample[0])
+                        xjs.append(sample[1])
+                    xis = torch.stack(tuple(xis))
+                    xis = xis.view(xis.shape[0], xis.shape[2], xis.shape[3])
+                    xjs = torch.stack(tuple(xjs))
+                    xjs = xjs.view(xjs.shape[0], xjs.shape[2], xjs.shape[3])
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
+                    loss = self._step(model, xis, xjs)
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss
+            elif self.exp == 3:
+                for xis, xjs, y in train_loader:
+                    optimizer.zero_grad()
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
 
-                loss = self._step(model, xis, xjs)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss
+                    loss = self._step(model, xis, xjs, y)
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss
+            else:
+                for xis, xjs in train_loader:
+                    optimizer.zero_grad()
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
+
+                    loss = self._step(model, xis, xjs)
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss
             epoch_loss /= float(num_batches)
             # validate the model
             valid_loss = self._validate(model, valid_loader)
             if valid_loss < best_valid_loss:
                 # save the model weights
                 best_valid_loss = valid_loss
-                torch.save(model.state_dict(), os.path.join(self.log_dir, 'encoder.pth'))
-                counter = 0
-            else:
-                counter += 1
+                torch.save(model.state_dict(),
+                           os.path.join(self.log_dir, 'checkpoints', 'encoder_{}.pth'.format(epoch_counter)))
+
             elapsed = time.time() - start
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch_counter, elapsed))
             print("\t\tTrain loss: {:.7f}\tVal loss: {:.7f}".format(epoch_loss, valid_loss))
@@ -108,25 +147,31 @@ class ContrastiveLearner(object):
                     )
                 )
 
-            if epoch_counter % 5 == 0:
-                encoder = model.eval()
-                train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
-                                                     encoder=encoder, data=train_data)
-                test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
-                                                   encoder=encoder, data=test_data)
-                train_X = np.asarray(train_X)
-                train_y = np.asarray(train_y)
-                test_X = np.asarray(test_X)
-                test_y = np.asarray(test_y)
-                evaluator = KNeighborsClassifier(n_neighbors=10)
-                evaluator.fit(train_X, train_y)
-                fold_train_acc = evaluator.score(test_X, test_y)
-                roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:,1])
-                model.train()
-                print(
-                    "pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc,roc_score))
-                with open(log_file, "a+") as log:
-                    log.write("pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc,roc_score))
+            encoder = model.eval()
+            train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
+                                                 encoder=encoder, data=train_data)
+            test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
+                                               encoder=encoder, data=test_data)
+            train_X = np.asarray(train_X)
+            train_y = np.asarray(train_y)
+            test_X = np.asarray(test_X)
+            test_y = np.asarray(test_y)
+            evaluator = KNeighborsClassifier(n_neighbors=10)
+            evaluator.fit(train_X, train_y)
+            fold_train_acc = evaluator.score(test_X, test_y)
+            roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
+            model.train()
+
+            if roc_score < best_auc:
+                # save the model weights
+                best_auc = roc_score
+                torch.save(model.state_dict(),
+                           os.path.join(self.log_dir, 'encoder.pth'))
+
+            print(
+                "pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
+            with open(log_file, "a+") as log:
+                log.write("pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
 
             # warmup for the first 10 epochs
             if epoch_counter >= 10:
@@ -145,9 +190,9 @@ class ContrastiveLearner(object):
                   learning_rate=0.0):
         df = self.dataset.labels
         data = self.dataset.data
-        scaler = preprocessing.StandardScaler()
-        scaler.fit(data.reshape((data.shape[0], -1)))
-        scaler.transform(data)
+        # scaler = preprocessing.StandardScaler()
+        # scaler.fit(data.reshape((data.shape[0], -1)))
+        # scaler.transform(data)
         total_train_acc = 0
         total_test_acc = 0
         if len(df.index) > 10:
@@ -169,6 +214,7 @@ class ContrastiveLearner(object):
         loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
         if encoder is not None:
             total_train_acc = 0
+            base_encoder = encoder
             for fold, (train_idx, test_idx) in enumerate(indices):
                 start_fold = time.time()
 
@@ -187,7 +233,7 @@ class ContrastiveLearner(object):
                     test_X = np.asarray(test_X)
                     test_y = np.asarray(test_y)
                     if evaluator_type == "linear":
-                        evaluator = LogisticRegression(class_weight="balanced", max_iter=10000)
+                        evaluator = LogisticRegression(class_weight="balanced", max_iter=1000000, penalty="none")
                     elif evaluator_type == "knn":
                         n_neighbors = 10
                         if n_neighbors > self.batch_size:
@@ -197,8 +243,10 @@ class ContrastiveLearner(object):
                     fold_train_acc = evaluator.score(train_X, train_y)
                     fold_test_acc = evaluator.score(test_X, test_y)
                     joblib.dump(evaluator, os.path.join(log_dir, "evaluator_" + str(fold) + ".pkl"))
+
                 elif evaluator_type == "fine-tune":
-                    model = SL(encoder).to(self.device)
+                    encoder = copy.deepcopy(base_encoder)
+                    model = SSL(encoder).to(self.device)
                     train_df = df.iloc[train_idx]
                     test_df = df.iloc[test_idx]
                     train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
@@ -212,6 +260,7 @@ class ContrastiveLearner(object):
                     fold_test_acc = 0
                     counter = 0
                     best_test_loss = np.inf
+                    epoch = 0
                     for epoch in range(1, self.epochs + 1):
                         start = time.time()
                         train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -245,8 +294,8 @@ class ContrastiveLearner(object):
                             print("Early Stop...")
                             break
 
-                    fold_train_acc /= float(self.epochs)
-                    fold_test_acc /= float(self.epochs)
+                    fold_train_acc /= float(epoch)
+                    fold_test_acc /= float(epoch)
 
                 elapsed_fold = time.time() - start_fold
                 total_train_acc += fold_train_acc
@@ -369,10 +418,10 @@ class ContrastiveLearner(object):
 
         labels = ["Normal", "Abnormal"]
 
-        scaler = preprocessing.StandardScaler()
+        # scaler = preprocessing.StandardScaler()
         data = self.dataset.data
-        scaler.fit(data.reshape((data.shape[0], -1)))
-        scaler.transform(data)
+        # scaler.fit(data.reshape((data.shape[0], -1)))
+        # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
 
@@ -400,10 +449,10 @@ class ContrastiveLearner(object):
                                              data=data)
                     if encoder is None:
                         model = self.get_model(1)
-                        state_dict = torch.load(model_weights)
-                        model.load_state_dict(state_dict)
                     else:
-                        model = SL(encoder).to(self.device)
+                        model = SSL(encoder).to(self.device)
+                    state_dict = torch.load(model_weights)
+                    model.load_state_dict(state_dict)
                     model.eval()
                     ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
                     _y_pred.append(expit(y_pred))
@@ -495,7 +544,7 @@ class ContrastiveLearner(object):
                   torch.tensor(y_true).to(device).unsqueeze(1).float().view(-1))
         return ce, y_true, y_pred
 
-    def _step(self, model, xis, xjs):
+    def _step(self, model, xis, xjs, y=None):
         xis = xis.view(xis.shape[0], 1, xis.shape[1], xis.shape[2]).to(self.device)
         xjs = xjs.view(xjs.shape[0], 1, xjs.shape[1], xjs.shape[2]).to(self.device)
         # get the representations and the projections
@@ -505,9 +554,8 @@ class ContrastiveLearner(object):
         # normalize projection feature vectors
         zis = F.normalize(zis, dim=1)
         zjs = F.normalize(zjs, dim=1)
-
-        inputs=torch.cat((zis,zjs)).view(zis.shape[0],2,-1)
-        loss = self.nt_xent_criterion(inputs)
+        inputs = torch.cat((zis, zjs)).view(zis.shape[0], 2, -1)
+        loss = self.nt_xent_criterion(inputs, labels=y)
         return loss
 
     def _validate(self, model, valid_loader):
@@ -515,21 +563,45 @@ class ContrastiveLearner(object):
         # validation steps
         with torch.no_grad():
             model.eval()
-
             valid_loss = 0.0
             counter = 0
-            for xis, xjs in valid_loader:
-                xis = xis.to(self.device)
-                xjs = xjs.to(self.device)
-                loss = self._step(model, xis, xjs)
-                valid_loss += loss.item()
-                counter += 1
-            valid_loss /= counter
+            if self.exp in [2, 4, 5, 6]:
+                for data in valid_loader:
+                    xis, xjs = [], []
+                    for sample in data:
+                        xis.append(sample[0])
+                        xjs.append(sample[1])
+                    xis = torch.stack(tuple(xis))
+                    xis = xis.view(xis.shape[0], xis.shape[2], xis.shape[3])
+                    xjs = torch.stack(tuple(xjs))
+                    xjs = xjs.view(xjs.shape[0], xjs.shape[2], xjs.shape[3])
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
+                    loss = self._step(model, xis, xjs)
+                    valid_loss += loss.item()
+                    counter += 1
+                valid_loss /= counter
+            elif self.exp == 3:
+                for xis, xjs, y in valid_loader:
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
+                    loss = self._step(model, xis, xjs, y)
+                    valid_loss += loss.item()
+                    counter += 1
+                valid_loss /= counter
+            else:
+                for xis, xjs in valid_loader:
+                    xis = xis.to(self.device)
+                    xjs = xjs.to(self.device)
+                    loss = self._step(model, xis, xjs)
+                    valid_loss += loss.item()
+                    counter += 1
+                valid_loss /= counter
         model.train()
         return valid_loss
 
 
-def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
+def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None):
     log_file = os.path.join(log_dir, f"pretraintrain_log.txt")
 
     num_epochs = epochs
@@ -545,7 +617,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1):
         f.write(f"Proportion of training data: {train_prop}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
-    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
+    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop, exp=exp)
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     learner.pre_train(log_file, task, label_file, augment, learning_rate)
@@ -572,7 +644,6 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
         dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
     else:
         dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
-
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
@@ -604,7 +675,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default="train", choices={"pretrain", "train", "test"})
     parser.add_argument("--task", type=str, default=None,
-                        choices={"disease", "wheeze", "crackle", "heartchallenge", "heart"})
+                        choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune"})
@@ -613,6 +684,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_prop", type=float, default=1.0)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--full_data", default=False)
+    parser.add_argument("--exp", type=int, default=None)
     args = parser.parse_args()
 
     base_dir = os.path.join(os.getcwd(), args.data)
@@ -625,9 +697,8 @@ if __name__ == "__main__":
         else:
             log_dir = os.path.join(base_dir, "logs", log_dir)
         print(f"Log Dir: {log_dir}")
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        pretrain_(args.epochs, args.task, base_dir, log_dir, args.augment, args.train_prop)
+        fi.make_path(log_dir)
+        pretrain_(args.epochs, args.task, base_dir, log_dir, args.augment, args.train_prop, args.exp)
     elif args.mode == "train":
         if log_dir is None:
             now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -635,8 +706,7 @@ if __name__ == "__main__":
         else:
             log_dir = os.path.join(base_dir, "logs", log_dir)
         print(f"Log Dir: {log_dir}")
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+        fi.make_path(log_dir)
         train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop,
                args.full_data)
     elif args.mode == "test":

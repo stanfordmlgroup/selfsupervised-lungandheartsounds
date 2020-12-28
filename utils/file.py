@@ -33,3 +33,8 @@ def make_path(path):
     if not os.path.exists(path):
         os.makedirs(path)
     return path
+
+def get_location(cycle_name):
+    cycle_list = cycle_name.split("_")
+    cycle_loc = cycle_list[2]
+    return cycle_loc

@@ -67,7 +67,7 @@ def class_distribution(task, label_file):
     #     labelsdf = labelsdf["diagnosis"].apply(diag_one_hot)
     elif task == "heart" or task == "heartchallenge":
         labelsdf = labelsdf["label"].apply(heart_recover_label).apply(heart_one_hot)
-    elif task == "disease" or task == "wheeze" or task == "crackle":
+    elif task == "disease" or task == "wheeze" or task == "crackle" or task=="demo":
         labelsdf = labelsdf["diagnosis"].apply(heart_recover_label).apply(heart_one_hot)
     # elif task == "heartchallenge":
     #     labelsdf = labelsdf["label"].apply(heartchallenge_one_hot)
