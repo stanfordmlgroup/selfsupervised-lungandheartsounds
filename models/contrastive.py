@@ -288,7 +288,8 @@ class ContrastiveLearner(object):
                         elapsed = time.time() - start
                         print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                         print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                        print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy, roc_score))
+                        print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
+                                                                                             test_accuracy, roc_score))
                         with open(log_file, "a+") as log:
                             log.write(
                                 "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
@@ -373,7 +374,8 @@ class ContrastiveLearner(object):
                     elapsed = time.time() - start
                     print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                     print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                    print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy, roc_score))
+                    print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
+                                                                                         roc_score))
                     with open(log_file, "a+") as log:
                         log.write(
                             "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
@@ -414,6 +416,11 @@ class ContrastiveLearner(object):
                     )
                 )
 
+    def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
+                learning_rate=0.0):
+        # TODO: distillation code
+        pass
+
     def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, ):
         _y_pred = []
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
@@ -432,6 +439,7 @@ class ContrastiveLearner(object):
         # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
+        distill_eval = len(glob(os.path.join(evaluator_dir, "student.pt"))) > 0
 
         with open(log_file, "a+") as out:
             if scikit_eval:
@@ -451,6 +459,11 @@ class ContrastiveLearner(object):
                     #           torch.as_tensor(y).to(self.device).view(-1).float())
                     # print("Model {} Test BCE: {:.7f}".format(i, ce))
                     # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
+
+            elif distill_eval:
+                # TODO: complete distillation testing
+                pass
+
             else:
                 for i, model_weights in enumerate(glob(os.path.join(evaluator_dir, "evaluator_*.pt"))):
                     loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
@@ -525,6 +538,27 @@ class ContrastiveLearner(object):
         return model
 
     def _train(self, model, loader, optimizer, device, loss):
+        model.train()
+        y_true = []
+        y_pred = []
+        for i, data in enumerate(loader):
+            X, y = data
+            X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
+            # print(X.mean(),X.std(),y)
+            optimizer.zero_grad()
+            output = model(X).float()
+            train_loss = loss(output.view(-1), y.view(-1))
+            y_true.extend(y.tolist())
+            y_pred.extend(output.tolist())
+            train_loss = train_loss.cuda()
+            train_loss.backward()
+            optimizer.step()
+        ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
+        # print(y_pred)
+        return ce, y_true, y_pred
+
+    def _distill(self, model, teacher, loader, optimizer, device, loss):
+        # TODO: change distill train loop
         model.train()
         y_true = []
         y_pred = []
@@ -727,6 +761,40 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
     learner.fine_tune(folds, task, label_file, log_file, augment, encoder, evaluator, learning_rate)
 
 
+def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
+    log_file = os.path.join(log_dir, f"distill_log.txt")
+
+    num_epochs = epochs
+    batch_size = 16
+    learning_rate = 0.0001
+    if evaluator is not None:
+        print("Evaluator: " + evaluator)
+    with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
+        f.write(f"Folds: {folds}\n")
+        f.write(f"Epochs: {num_epochs}\n")
+        f.write(f"Batch size: {batch_size}\n")
+        f.write(f"Learning rate: {learning_rate}\n")
+        f.write(f"Proportion of training data: {train_prop}\n")
+        f.write(f"Evaluator: {evaluator}\n")
+
+    label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
+    if not full_data:
+        dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
+    else:
+        dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
+
+    learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
+    try:
+        # TODO: load correct model
+        state_dict = torch.load(os.path.join(log_dir, 'encoder.pth'))
+        teacher = learner.get_model(256)
+        teacher.load_state_dict(state_dict)
+    except FileNotFoundError:
+        raise Exception("distillation requires teacher model")
+    learner.distill(folds, task, label_file, log_file, augment, teacher, evaluator, learning_rate)
+    pass
+
+
 def test_(task, base_dir, log_dir, evaluator, seed=None):
     log_file = os.path.join(log_dir, f"test_log.txt")
     with open(log_file, "w") as f:
@@ -745,7 +813,7 @@ def test_(task, base_dir, log_dir, evaluator, seed=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", type=str, default="train", choices={"pretrain", "train", "test"})
+    parser.add_argument("--mode", type=str, default="train", choices={"pretrain", "train", "test", "distill"})
     parser.add_argument("--task", type=str, default=None,
                         choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
@@ -783,6 +851,15 @@ if __name__ == "__main__":
         fi.make_path(log_dir)
         train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop,
                args.full_data)
+    elif args.mode == "distill":
+        if log_dir is not None:
+            log_dir = os.path.join(base_dir, "logs", log_dir)
+        else:
+            raise Exception("Distilling requires log dir")
+        print(f"Log Dir: {log_dir}")
+        fi.make_path(log_dir)
+        distill_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop,
+                 args.full_data)
     elif args.mode == "test":
         seed = 0
         torch.backends.cudnn.deterministic = True
