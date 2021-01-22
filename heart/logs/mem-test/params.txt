@@ -1,5 +1,0 @@
-Model: CNNlight
-Folds: 5
-Epochs: 10
-Batch size: 1
-Learning rate: 0.001

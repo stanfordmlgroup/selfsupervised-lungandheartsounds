@@ -55,7 +55,7 @@ class LungDatasetExp3(Dataset):
         self.norm_func = transforms.Normalize([3.273], [100.439])
 
         self.exp = exp
-        if self.exp in [4, 5, 6]:
+        if self.exp in [3, 4, 5, 6]:
             self.demo = pd.read_csv(os.path.join(base_dir, "demographics_MICE.csv"))
             self.demo = self.demo[self.demo.pt_num.isin(list(self.ID_list))]
             if self.exp == 4:
@@ -686,6 +686,16 @@ def get_transform(augment=None):
         spec = au.SpectralAugment(mel)
         split = au.Split(spec)
         return split
+    if augment == "raw+split":
+        raw = au.RawAugment()
+        mel = Mel(raw)
+        split = au.Split(mel)
+        return split
+    if augment == "raw+spec":
+        raw = au.RawAugment()
+        mel = Mel(raw)
+        spec = au.SpectralAugment(mel)
+        return spec
 
 
 def process_data(mode, augment, X, y, norm_func):
@@ -744,8 +754,10 @@ def get_scikit_loader(device, task, label_file, base_dir, split="train", df=None
             y.append(data[1])
             x = data[0]
         if encoder is not None:
-            x = x.view(1, 1, x.shape[0], x.shape[1]).to(device)
-            x = encoder(x)
+            encoder.eval()
+            with torch.no_grad():
+                x = x.view(1, 1, x.shape[0], x.shape[1]).to(device)
+                x = encoder(x, tune=True)
         X.append(x.cpu().detach().numpy())
 
     if split == "test":
@@ -804,7 +816,10 @@ def h5ify(base_dir, label_file, train_prop):
                 print('split not found and will not be added to archive')
 
             if 'cycle' in df.columns:
+                counter = 0
                 for idx, row in df.iterrows():
+                    print(row['cycle'], counter)
+                    counter += 1
                     audio, sample_rate = get_data(row['cycle'])
                     audio_samples.append(audio)
 
@@ -817,7 +832,7 @@ def h5ify(base_dir, label_file, train_prop):
 
 
 if __name__ == '__main__':
-    __tasks__ = ['disease', 'crackle', 'wheeze', 'heartchallenge']
+    __tasks__ = ['disease', 'crackle', 'wheeze', 'heartchallenge']  # ,'heart']
     __train_props__ = [1.0]
     for task in __tasks__:
         if task == 'disease' or task == 'crackle' or task == 'wheeze':

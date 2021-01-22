@@ -1,4 +1,0 @@
-Epochs: 1
-Batch size: 128
-Learning rate: 0.001
-Proportion of training data: 1.0

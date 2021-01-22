@@ -16,7 +16,7 @@
 - Lung sounds (disease)
     - Normal v Abnormal (26/100)
         - Abnormal: COPD: 64, Healthy: 26, URTI: 14, Bronchiectasis: 7, Bronchiolitis: 6, Pneumonia: 6, LRTI: 2, Asthma: 1
-    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples) {Internal Test/Fine-Tune (30 samples {15 of each})}
     - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
     - Mel mean: 3.273, std: 100.439 
 - Lung sounds (crackles)

@@ -123,13 +123,14 @@ def get_accuracy(labels, preds):
 
 class WeightedFocalLoss(nn.Module):
     """Non weighted version of Focal Loss"""
-    def __init__(self, alpha=.25, gamma=2):
+    def __init__(self, alpha=.25, gamma=0):
         super(WeightedFocalLoss, self).__init__()
         self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
+        #print(self.alpha)
         self.gamma = gamma
 
     def forward(self, inputs, targets):
-        #print(expit(inputs.cpu().detach().numpy()))
+        #print(expit(inputs.cpu().detach().numpy()),targets)
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none')
         targets = targets.type(torch.long)
         at = self.alpha.gather(0, targets.data.view(-1))

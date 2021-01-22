@@ -9,6 +9,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import torch
 from spec_augment import spec_augment
+import time
+
 
 def visualization_spectrogram(mel_spectrogram, title):
     """visualizing result of SpecAugment
@@ -18,11 +20,14 @@ def visualization_spectrogram(mel_spectrogram, title):
     """
     # Show mel-spectrogram using librosa's specshow.
     plt.figure(figsize=(10, 4))
-    librosa.display.specshow(librosa.power_to_db(mel_spectrogram[0, :, :], ref=np.max), y_axis='mel', fmax=8000, x_axis='time')
+    librosa.display.specshow(librosa.power_to_db(mel_spectrogram[0, :, :], ref=np.max), y_axis='mel', fmax=8000,
+                             x_axis='time')
     # plt.colorbar(format='%+2.0f dB')
     plt.title(title)
     plt.tight_layout()
     plt.show()
+
+
 # Performs randomized masking
 class BaseInputMask(object):
     def __init__(self, p):
@@ -54,46 +59,45 @@ class Split(object):
         return pixel_array[start_col_one:end_col_one, :]
 
 
-
-#Performs augment on raw audio data as specified in https://arxiv.org/ftp/arxiv/papers/2007/2007.07966.pdf
+# Performs augment on raw audio data as specified in https://arxiv.org/ftp/arxiv/papers/2007/2007.07966.pdf
 class RawAugment(object):
     def __init__(self):
         pass
 
     def __call__(self, audio_data, sample_rate):
         augment = Compose([
-            Gain(p=.5),
-            PitchShift(p=.5),
-            Shift(rollover=False, p=.5),
-            TimeStretch(p=.5),
-            AddGaussianNoise(p=1.0),
+            #Gain(p=1),
+            #PitchShift(p=1),
+            #Shift(rollover=False, p=1),
+            #TimeStretch(p=1),
+            #AddGaussianNoise(min_amplitude=.00001, max_amplitude=.00001,p=1),
         ])
         augment_sample = augment(samples=audio_data, sample_rate=sample_rate)
         return augment_sample
 
-#Performs spectral augment as specified in https://arxiv.org/ftp/arxiv/papers/2007/2007.07966.pdf
-#Need to fix spectral import issue
+
+# Performs spectral augment as specified in https://arxiv.org/ftp/arxiv/papers/2007/2007.07966.pdf
+# Need to fix spectral import issue
 class SpectralAugment(object):
     def __init__(self, spec_func):
         self.spec_func = spec_func
 
     def __call__(self, X):
         spectrogram = self.spec_func(X)
-        #augment = Compose([
-           # BaseInputMask(p=.5),
-            # SpecChannelShuffle(),
-            # spectrogram_shuffle(spectrogram),
-            # Shift(min_fraction=-.5, max_fraction=.5, p=.5),
-            # SpecFrequencyMask(),
-            # spectrogram_freq_mask(spectrogram),
-            # AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=0.5)
-        #])
-        spectrogram=torch.Tensor(spectrogram)
-        spectrogram=spectrogram.view(1,spectrogram.shape[0],spectrogram.shape[1])
-        augment_sample = spec_augment(mel_spectrogram=spectrogram, time_warping_para=60)
-        augment_sample=augment_sample.squeeze().cpu().numpy()
+        # augment = Compose([
+        # BaseInputMask(p=.5),
+        # SpecChannelShuffle(),
+        # spectrogram_shuffle(spectrogram),
+        # Shift(min_fraction=-.5, max_fraction=.5, p=.5),
+        # SpecFrequencyMask(),
+        # spectrogram_freq_mask(spectrogram),
+        # AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=0.5)
+        # ])
+        spectrogram = torch.Tensor(spectrogram)
+        spectrogram = spectrogram.view(1, spectrogram.shape[0], spectrogram.shape[1])
+        augment_sample = spec_augment(mel_spectrogram=spectrogram, time_warping_para=10)
+        augment_sample = augment_sample.squeeze().cpu().numpy()
         return augment_sample
-
 
 
 def spectrogram_freq_mask(spectrogram):
@@ -125,28 +129,76 @@ if __name__ == '__main__':
     from skimage import metrics
     import sys
     import os
+
     sys.path.append('../models')
     from data import get_transform
     import file as fi
     import soundfile as sf
+    import noisereduce as nr
+    import matplotlib.pyplot as plt
+
+    def plot(orig, augment):
+        plt.figure(figsize=(20,10))
+
+        plt.subplot(2,2,1)
+        plt.title('original mel')
+        print(orig.min(), orig.mean(), orig.max(), orig.std())
+        plt.imshow(orig, aspect='auto')
+
+        plt.subplot(2,2,2)
+        plt.title('augmented mel')
+        print(augment.min(), augment.mean(), augment.max(), orig.std(),"\n")
+        plt.imshow(augment, aspect='auto')
+
+        plt.subplot(2, 2, 3)
+        plt.title('original mel hist')
+        plt.hist(orig.reshape(-1), bins=10)
+
+        plt.subplot(2, 2, 4)
+        plt.title('augmented mel hist')
+        plt.hist(augment.reshape(-1), bins=10)
+
+        plt.show()
+
+
+    def post_process(sound):
+        #less_sound = nr.reduce_noise(sound, noise_clip=sound[:sound.shape[0]//6])
+        less_sound = sound
+        db = librosa.core.amplitude_to_db(less_sound).mean()
+        print(db)
+        output = less_sound * (2 ** (-2 - db / 10))
+        print(librosa.core.amplitude_to_db(output).mean(),"\n")
+        return output
+
 
     file = '../heart/processed/heart_1.0.h5'
+    file = '../data/processed/disease_1.0.h5'
     file = h5.File(file, 'r')
     data = file['test']
-    num_samples = data.shape[0]
-    __transforms__ = ["spec", "raw", "raw+spec"]
+    num_samples = 0
+    __transforms__ = ["raw", "spec", "raw+spec"]
     mel = get_transform()
-    path=fi.make_path(os.path.join(os.getcwd(),'../utils/output'))
-    sf.write(os.path.join(path, 'original.wav'), data[0],samplerate=22050)
+    path = fi.make_path(os.path.join(os.getcwd(), '../utils/output'))
+    sf.write(os.path.join(path, 'original.wav'), post_process(data[27]), samplerate=22050)
+    sample = [27]
     for transform in __transforms__:
+        start = time.time()
         augment = get_transform(transform)
-        avg_psnr=0
-        avg_ssim=0
-        for i in range(0,1):
-            raw=data[i]
+        avg_psnr = 0
+        avg_ssim = 0
+        for i in sample:
+            raw = data[i]
             mel_ = mel(raw)
             augment_ = augment(raw)
-            avg_psnr += metrics.peak_signal_noise_ratio(mel_, augment_, data_range=mel_.max()-mel_.min()) / num_samples
-            avg_psnr += metrics.structural_similarity(mel_,augment_) / num_samples
-        print("{}, Average PSNR: {:.2f}, Average SSIM: {:.3f}\n".format(transform,avg_psnr,avg_ssim))
-        sf.write(os.path.join(path, transform+'.wav'), librosa.feature.inverse.mel_to_audio(augment_.T),samplerate=22050)
+            avg_psnr += metrics.peak_signal_noise_ratio(mel_, augment_, data_range=mel_.max() - mel_.min())
+            avg_ssim += metrics.structural_similarity(mel_, augment_)
+            num_samples += 1
+
+        output = post_process(librosa.feature.inverse.mel_to_audio(augment_, n_fft=512,n_iter=1000))
+        sf.write(os.path.join(path, transform + '.wav'), output,
+                 samplerate=22050)
+        print("{}, Compute Time: {:.3f} s, Average PSNR: {:.2f}, Average SSIM: {:.3f}\n".format(transform,
+                                                                                                time.time() - start,
+                                                                                                avg_psnr / num_samples,
+                                                                                                avg_ssim / num_samples))
+        plot(mel_, augment_)

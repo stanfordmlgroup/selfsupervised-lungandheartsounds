@@ -3,6 +3,8 @@ import time
 import numpy as np
 import datetime
 import argparse
+from torch.autograd import Variable
+from torch.optim import Adam, LBFGS
 import torch
 from torch.nn import Sequential, Linear, ReLU, DataParallel, Conv2d, LeakyReLU, MaxPool2d, Dropout, CrossEntropyLoss, \
     Softmax
@@ -28,11 +30,25 @@ torch.backends.cudnn.benchmark = False
 torch.autograd.set_detect_anomaly(True)
 
 
+class Logistic(torch.nn.Module):
+    def __init__(self, input_dim):
+        super(Logistic, self).__init__()
+        self.linear = torch.nn.Linear(input_dim, 1, bias=True)
+
+    def forward(self, x):
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
+        x = self.linear(x)
+        x = x.view(-1)
+        x = torch.clamp(x,min=-10,max=10)
+        return x
+
+
 class SSL(torch.nn.Module):
     def __init__(self, encoder):
         super(SSL, self).__init__()
         self.encoder = encoder
-        self.feature_length = encoder.out_dim
+        self.feature_length = encoder.num_ftrs
         self.linear_layers = Sequential(
             torch.nn.Linear(self.feature_length, self.feature_length, bias=False),
             torch.nn.BatchNorm1d(self.feature_length),
@@ -41,9 +57,9 @@ class SSL(torch.nn.Module):
         )
 
     def forward(self, x):
-        x = self.encoder(x)
-        if len(x.shape)==1:
-            x=x.unsqueeze(0)
+        x = self.encoder(x, tune=True)
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
         x = self.linear_layers(x)
         x = x.view(-1)
         return x
@@ -58,13 +74,13 @@ class ResNetSimCLR(torch.nn.Module):
 
         resnet = self._get_basemodel(base_model)
         resnet.conv1 = torch.nn.Conv2d(1, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-        num_ftrs = resnet.fc.in_features
+        self.num_ftrs = resnet.fc.in_features
 
         self.features = Sequential(*list(resnet.children())[:-1])
         self.out_dim = out_dim
         # projection MLP
-        self.l1 = Linear(num_ftrs, num_ftrs)
-        self.l2 = Linear(num_ftrs, self.out_dim)
+        self.l1 = Linear(self.num_ftrs, self.num_ftrs)
+        self.l2 = Linear(self.num_ftrs, self.out_dim)
 
     def _get_basemodel(self, model_name):
         try:
@@ -74,15 +90,16 @@ class ResNetSimCLR(torch.nn.Module):
         except:
             raise ("Invalid model name. Check the config file and pass one of: resnet18 or resnet50")
 
-    def forward(self, x):
+    def forward(self, x, tune=False):
         h = self.features(x)
         h = h.squeeze()
-
-        x = self.l1(h)
-        x = F.relu(x)
-        x = self.l2(x)
-        return x
-
+        if not tune:
+            x = self.l1(h)
+            x = F.relu(x)
+            x = self.l2(x)
+            return x
+        else:
+            return h
 
 class CNN(torch.nn.Module):
     def __init__(self, task, classes):
@@ -107,23 +124,23 @@ class CNN(torch.nn.Module):
             MaxPool2d(4),
         )
         hidden_dim = 0
-        if self.task == "disease" or self.task == "symptom":
+        if self.task == "disease" or self.task == "symptom" or self.task=='crackle' or self.task=='wheeze':
             hidden_dim = 18432
         elif self.task == "heart":
-            hidden_dim = 4096
+            hidden_dim = 157696
         elif self.task == "heartchallenge":
             hidden_dim = 2048
 
         self.linear_layers = Sequential(
-            # 118272 for disease/symptom, 574464 for heart, 219648 for heart challenge
-            Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
-            Linear(512, classes)
+            # 118272 for disease/symptom, 157696 for heart, 219648 for heart challenge
+            Linear(hidden_dim, 256), ReLU(inplace=True), Linear(256, 128), ReLU(inplace=True),
+            Linear(128, classes)
         )
 
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        # print(x.shape)
+        #print(x.shape)
         x = self.linear_layers(x)
         return x
 
