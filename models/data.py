@@ -478,7 +478,7 @@ class LungDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([3.273], [100.439])
+        self.norm_func = transforms.Normalize([0], [1])
 
     def __len__(self):
         return len(self.labels)
@@ -563,7 +563,7 @@ class HeartDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([.7196], [32.07])
+        self.norm_func = transforms.Normalize([0], [1])
 
     def __len__(self):
         return len(self.labels)
@@ -571,6 +571,7 @@ class HeartDataset(Dataset):
     def __getitem__(self, idx):
         row = self.labels.iloc[idx]
         X = self.data[idx]
+
         # Get label
         y = self.get_class_val(row)
         if self.split == "test":
@@ -630,7 +631,7 @@ class HeartChallengeDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([.9364], [33.991])
+        self.norm_func = transforms.Normalize([0], [1])
 
     def __len__(self):
         return len(self.labels)
@@ -676,6 +677,14 @@ def get_transform(augment=None):
     if augment == "spec":
         mel = Mel()
         spec = au.SpectralAugment(mel)
+        return spec
+    if augment == "time":
+        mel = Mel()
+        spec = au.TimeAugment(mel)
+        return spec
+    if augment == "freq":
+        mel = Mel()
+        spec = au.FreqAugment(mel)
         return spec
     if augment == "raw":
         raw = au.RawAugment()

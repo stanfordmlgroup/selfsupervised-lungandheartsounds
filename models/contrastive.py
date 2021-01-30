@@ -159,7 +159,10 @@ class ContrastiveLearner(object):
             evaluator = KNeighborsClassifier(n_neighbors=10)
             evaluator.fit(train_X, train_y)
             fold_train_acc = evaluator.score(test_X, test_y)
-            roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
+            try:
+                roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
+            except:
+                roc_score = 0
             model.train()
 
             if roc_score < best_auc:
@@ -208,9 +211,9 @@ class ContrastiveLearner(object):
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
         # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
-        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
-        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        loss = BCEWithLogitsLoss().to(self.device)
+        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
@@ -427,9 +430,9 @@ class ContrastiveLearner(object):
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
         # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
-        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
-        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        loss = BCEWithLogitsLoss().to(self.device)
+        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
 
         labels = ["Normal", "Abnormal"]
 
@@ -820,7 +823,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn"})
     parser.add_argument("--augment", type=str, default=None,
-                        choices={"split", "raw", "spec", "spec+split", 'raw+split'})
+                        choices={"split", "raw", "spec", "spec+split", 'raw+split','time','freq'})
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--train_prop", type=float, default=1.0)
     parser.add_argument("--epochs", type=int, default=100)
