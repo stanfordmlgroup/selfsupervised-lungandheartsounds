@@ -27,7 +27,7 @@ sys.path.append("../utils")
 import loss as lo
 import labels as la
 import file as fi
-from loss import NTXentLoss, WeightedFocalLoss, add_kd_loss
+from loss import NTXentLoss, WeightedFocalLoss#, add_kd_loss
 import random
 
 
@@ -444,7 +444,7 @@ class ContrastiveLearner(object):
         # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
         # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        #loss = WeightedFocalLoss(alpha=pos_weight).to(self.device) #Use different loss function here
+        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device) #Use different loss function here
         #loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
 
         #Supervised Algo from above:
@@ -471,7 +471,7 @@ class ContrastiveLearner(object):
             counter = 0
             for epoch in range(1, self.epochs + 1):
                 start = time.time()
-                train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
+                train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
                                                                  loss)
                 test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
                 train_pred, test_pred = expit(train_pred), expit(test_pred)
@@ -678,9 +678,9 @@ class ContrastiveLearner(object):
         y_pred = []
         for i, data in enumerate(loader):
             X, y = data
-            y = teacher(X) #y is a tensor here
-            probs = expit(y.cpu())
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
+            y = teacher(X) #y is a tensor here
+            #probs = expit(y.cpu())
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
             output = model(X).float()
@@ -902,7 +902,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
         # TODO: Make sure working as expected:
-        state_dict = torch.load(os.path.join(log_dir, 'evaluator_0.pth'))
+        state_dict = torch.load(os.path.join(log_dir, 'evaluator_0.pt'))
         encoder = learner.get_model(256)
         teacher = SSL(encoder)
         teacher.load_state_dict(state_dict)
