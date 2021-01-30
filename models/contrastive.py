@@ -27,7 +27,7 @@ sys.path.append("../utils")
 import loss as lo
 import labels as la
 import file as fi
-from loss import NTXentLoss, WeightedFocalLoss
+from loss import NTXentLoss, WeightedFocalLoss, add_kd_loss
 import random
 
 
@@ -419,9 +419,117 @@ class ContrastiveLearner(object):
                     )
                 )
 
+    #Utilize KL Divergence Loss Function here
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
-        # TODO: distillation code
+        df = self.dataset.labels
+        data = self.dataset.data
+        total_train_acc = 0
+        total_test_acc = 0
+        # if len(df.index) > 10:
+        #     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=345)
+        #     indices = kf.split(df, df["y"])
+        # else:
+        train_idx = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
+        test_idx = []
+        for i in range(0, len(df.index)):
+            if i not in train_idx:
+                test_idx.append(i)
+        indices = [(train_idx, test_idx)]
+        self.batch_size = min(self.batch_size, len(train_idx))
+        print('Batch Size: {}'.format(self.batch_size))
+        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
+        # weights = 1.0 / weights
+        # weights = weights / weights.sum()
+        # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        #loss = WeightedFocalLoss(alpha=pos_weight).to(self.device) #Use different loss function here
+        #loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
+
+        #Supervised Algo from above:
+        for fold, (train_idx, test_idx) in enumerate(indices):
+            start_fold = time.time()
+            if evaluator_type == 'fine-tune':
+                model = self.get_model(1)
+            elif evaluator_type == 'cnn':
+                model = CNN(task, 1).to(self.device)
+            train_df = df.iloc[train_idx]
+            test_df = df.iloc[test_idx]
+            train_data = data[train_idx]
+            test_data = data[test_idx]
+            train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
+                                           transform=augment, data=train_data)
+            test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
+            # learning_rate = learning_rate * 10.0
+            # print("LR: {:.7f}".format(learning_rate))
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+            fold_train_acc = 0
+            fold_test_acc = 0
+            best_test_loss = np.inf
+            counter = 0
+            for epoch in range(1, self.epochs + 1):
+                start = time.time()
+                train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
+                                                                 loss)
+                test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                train_pred, test_pred = expit(train_pred), expit(test_pred)
+                train_accuracy = lo.get_accuracy(train_true, train_pred)
+                test_accuracy = lo.get_accuracy(test_true, test_pred)
+                try:
+                    roc_score = roc_auc_score(test_true, test_pred)
+                except:
+                    roc_score = 0
+                if test_loss < best_test_loss:
+                    lo.save_weights(model, os.path.join(log_dir, "student_" + str(fold) + ".pt"))
+                    best_test_loss = test_loss
+
+                elapsed = time.time() - start
+                print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+                print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
+                print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
+                                                                                     roc_score))
+                with open(log_file, "a+") as log:
+                    log.write(
+                        "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
+                            epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
+                        )
+                    )
+
+                fold_train_acc += train_accuracy
+                fold_test_acc += test_accuracy
+
+            elapsed_fold = time.time() - start_fold
+
+            fold_train_acc /= float(self.epochs)
+            fold_test_acc /= float(self.epochs)
+            total_train_acc += fold_train_acc
+            total_test_acc += fold_test_acc
+            print(
+                "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
+                    fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
+                )
+            )
+            with open(log_file, "a+") as log:
+                log.write(
+                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
+                        fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
+                    )
+                )
+
+        total_train_acc /= float(n_splits)
+        total_test_acc /= float(n_splits)
+        print(
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
+                                                                                           total_test_acc))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
+                    total_train_acc, total_test_acc
+                )
+            )
+
         pass
 
     def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, ):
@@ -464,7 +572,9 @@ class ContrastiveLearner(object):
                     # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
 
             elif distill_eval:
-                # TODO: complete distillation testing
+                # TODO: Figure out how similar this should be to the running above
+                print('Distill Test')
+                encoder.eval()
                 pass
 
             else:
@@ -561,12 +671,15 @@ class ContrastiveLearner(object):
         return ce, y_true, y_pred
 
     def _distill(self, model, teacher, loader, optimizer, device, loss):
-        # TODO: change distill train loop
+        # TODO: Test if two changes are all that's required
         model.train()
+        teacher.to(self.device).eval()
         y_true = []
         y_pred = []
         for i, data in enumerate(loader):
             X, y = data
+            y = teacher(X) #y is a tensor here
+            probs = expit(y.cpu())
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
@@ -788,10 +901,12 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
-        # TODO: load correct model
-        state_dict = torch.load(os.path.join(log_dir, 'encoder.pth'))
-        teacher = learner.get_model(256)
+        # TODO: Make sure working as expected:
+        state_dict = torch.load(os.path.join(log_dir, 'evaluator_0.pth'))
+        encoder = learner.get_model(256)
+        teacher = SSL(encoder)
         teacher.load_state_dict(state_dict)
+        teacher.eval()
     except FileNotFoundError:
         raise Exception("distillation requires teacher model")
     learner.distill(folds, task, label_file, log_file, augment, teacher, evaluator, learning_rate)
