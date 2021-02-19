@@ -52,7 +52,7 @@ class LungDatasetExp3(Dataset):
         self.ID_list = self.labels.ID.unique()
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([3.273], [100.439])
+        self.norm_func = transforms.Normalize([0], [1])
 
         self.exp = exp
         if self.exp in [3, 4, 5, 6]:
@@ -705,6 +705,11 @@ def get_transform(augment=None):
         mel = Mel(raw)
         spec = au.SpectralAugment(mel)
         return spec
+    if augment == "time+split":
+        mel = Mel()
+        spec = au.TimeAugment(mel)
+        split = au.Split(spec)
+        return split
 
 
 def process_data(mode, augment, X, y, norm_func):

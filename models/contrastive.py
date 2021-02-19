@@ -27,7 +27,7 @@ sys.path.append("../utils")
 import loss as lo
 import labels as la
 import file as fi
-from loss import NTXentLoss, WeightedFocalLoss#, add_kd_loss
+from loss import NTXentLoss, WeightedFocalLoss  # , add_kd_loss
 import random
 
 
@@ -88,6 +88,8 @@ class ContrastiveLearner(object):
         best_valid_loss = np.inf
         best_auc = np.inf
         fi.make_path(os.path.join(log_dir, 'checkpoints'))
+        torch.save(model.state_dict(),
+                   os.path.join(self.log_dir, 'encoder.pth'))
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
@@ -254,12 +256,18 @@ class ContrastiveLearner(object):
                         if test_loss < best_test_loss:
                             lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
                             best_test_loss = test_loss
+                            counter = 0
+                        else:
+                            counter += 1
                         try:
                             roc_score = roc_auc_score(test_true, test_pred)
                         except:
                             roc_score = 0
                         fold_train_acc += train_accuracy
                         fold_test_acc += test_accuracy
+                        if counter == self.epochs//5:
+                            print("Early stop...")
+                            break
 
                 elif evaluator_type == "fine-tune":
                     model = SSL(encoder).to(self.device)
@@ -273,6 +281,7 @@ class ContrastiveLearner(object):
                     counter = 0
                     best_test_loss = np.inf
                     epoch = 0
+                    counter =0
                     for epoch in range(1, self.epochs + 1):
                         start = time.time()
                         train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -281,9 +290,16 @@ class ContrastiveLearner(object):
                         train_pred, test_pred = expit(train_pred), expit(test_pred)
                         train_accuracy = lo.get_accuracy(train_true, train_pred)
                         test_accuracy = lo.get_accuracy(test_true, test_pred)
+
                         if test_loss < best_test_loss:
                             lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
                             best_test_loss = test_loss
+                            counter=0
+                        else:
+                            counter+=1
+                        if counter == self.epochs//5:
+                            print("Early stop...")
+                            break
                         try:
                             roc_score = roc_auc_score(test_true, test_pred)
                         except:
@@ -373,6 +389,12 @@ class ContrastiveLearner(object):
                     if test_loss < best_test_loss:
                         lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
                         best_test_loss = test_loss
+                        counter = 0
+                    else:
+                        counter += 1
+                    if counter == self.epochs // 5:
+                        print("Early stop...")
+                        break
 
                     elapsed = time.time() - start
                     print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
@@ -419,7 +441,7 @@ class ContrastiveLearner(object):
                     )
                 )
 
-    #Utilize KL Divergence Loss Function here
+    # Utilize KL Divergence Loss Function here
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
         df = self.dataset.labels
@@ -444,10 +466,10 @@ class ContrastiveLearner(object):
         # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
         # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device) #Use different loss function here
-        #loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
+        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
+        # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
 
-        #Supervised Algo from above:
+        # Supervised Algo from above:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
             if evaluator_type == 'fine-tune':
@@ -472,7 +494,7 @@ class ContrastiveLearner(object):
             for epoch in range(1, self.epochs + 1):
                 start = time.time()
                 train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
-                                                                 loss)
+                                                                   loss)
                 test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
                 train_pred, test_pred = expit(train_pred), expit(test_pred)
                 train_accuracy = lo.get_accuracy(train_true, train_pred)
@@ -679,8 +701,8 @@ class ContrastiveLearner(object):
         for i, data in enumerate(loader):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            y = teacher(X) #y is a tensor here
-            #probs = expit(y.cpu())
+            y = teacher(X)  # y is a tensor here
+            # probs = expit(y.cpu())
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
             output = model(X).float()
@@ -850,7 +872,7 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = 0.0001
+    learning_rate = .0001
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
@@ -938,7 +960,7 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn"})
     parser.add_argument("--augment", type=str, default=None,
-                        choices={"split", "raw", "spec", "spec+split", 'raw+split','time','freq'})
+                        choices={"split", "raw", "spec", "spec+split", 'raw+split', 'time', 'freq', 'time+split'})
     parser.add_argument("--folds", type=int, default=5)
     parser.add_argument("--train_prop", type=float, default=1.0)
     parser.add_argument("--epochs", type=int, default=100)

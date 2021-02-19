@@ -20,11 +20,7 @@ import random
 import numpy as np
 # import scipy.signal
 import torch
-# import torchaudio
-# from torchaudio import transforms
-# import math
-# from torch.utils.data import DataLoader
-# from torch.utils.data import Dataset
+import math
 
 
 def time_warp(spec, W=5):
@@ -32,16 +28,15 @@ def time_warp(spec, W=5):
     spec_len = spec.shape[2]
 
     y = num_rows // 2
-    horizontal_line_at_ctr = spec[0][y]
-    # assert len(horizontal_line_at_ctr) == spec_len
 
-    point_to_warp = horizontal_line_at_ctr[random.randrange(W, spec_len-W)]
-    # assert isinstance(point_to_warp, torch.Tensor)
-
-    # Uniform distribution from (0,W) with chance to be up to W negative
     dist_to_warp = random.randrange(-W, W)
+    dist_to_warp = 7
+    point_to_warp = random.randrange(dist_to_warp, spec_len - dist_to_warp)
+    point_to_warp = 28
+    # Uniform distribution from (0,W) with chance to be up to W negative
     src_pts = torch.tensor([[[y, point_to_warp]]])
     dest_pts = torch.tensor([[[y, point_to_warp + dist_to_warp]]])
+    print(src_pts, dest_pts, dist_to_warp)
     warped_spectro, dense_flows = sparse_image_warp(spec, src_pts, dest_pts)
     return warped_spectro.squeeze(3)
 
@@ -71,21 +66,33 @@ def spec_augment(mel_spectrogram, time_warping_para=80, frequency_masking_para=2
     tau = mel_spectrogram.shape[2]
 
     # Step 1 : Time warping
-    warped_mel_spectrogram = time_warp(mel_spectrogram, W=time_warping_para)
+    # warped_mel_spectrogram = time_warp(mel_spectrogram, W=time_warping_para)
+    warped_mel_spectrogram = mel_spectrogram
 
+    idx = warped_mel_spectrogram[0].abs().sum(dim=0).bool()
+    idx = torch.masked_select(torch.arange(0, warped_mel_spectrogram[0].shape[1]), idx)
+    idx = idx.tolist()
+    idy = warped_mel_spectrogram[0].abs().mean(dim=1) > .01
+    idy = torch.masked_select(torch.arange(0, warped_mel_spectrogram[0].shape[0]), idy)
+    idy = idy.tolist()
     # Step 2 : Frequency masking
+    if frequency_mask_num != 0:
+        frequency_masking_para = .5 * len(idy) // frequency_mask_num
     for i in range(frequency_mask_num):
         f = np.random.uniform(low=0.0, high=frequency_masking_para)
         f = int(f)
-        f0 = random.randint(0, v-f)
-        warped_mel_spectrogram[:, f0:f0+f, :] = 0
+        f0 = random.randint(idy[0], idy[-1] - f)
+        warped_mel_spectrogram[:, f0:f0 + f, :] = 0
 
     # Step 3 : Time masking
+    if time_mask_num != 0:
+        time_masking_para = .5 * len(idx) // time_mask_num
+
     for i in range(time_mask_num):
         t = np.random.uniform(low=0.0, high=time_masking_para)
         t = int(t)
-        t0 = random.randint(0, tau-t)
-        warped_mel_spectrogram[:, :, t0:t0+t] = 0
+        t0 = random.randint(idx[0], idx[-1] - t)
+        warped_mel_spectrogram[:, :, t0:t0 + t] = 0
 
     return warped_mel_spectrogram
 
@@ -193,13 +200,11 @@ def solve_interpolation(train_points, train_values, order, regularization_weight
 
     c = train_points
     f = train_values.float()
-
     matrix_a = phi(cross_squared_distance_matrix(c, c), order).unsqueeze(0)  # [b, n, n]
     #     if regularization_weight > 0:
     #         batch_identity_matrix = array_ops.expand_dims(
     #           linalg_ops.eye(n, dtype=c.dtype), 0)
     #         matrix_a += regularization_weight * batch_identity_matrix
-
     # Append ones to the feature values for the bias term in the linear model.
     ones = torch.ones(1, dtype=train_points.dtype).view([-1, 1, 1])
     matrix_b = torch.cat((c, ones), 2).float()  # [b, n, d + 1]

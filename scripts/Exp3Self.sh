@@ -22,118 +22,228 @@ echo "SLURMTMPDIR="$SLURMTMPDIR
 echo "working directory = "$SLURM_SUBMIT_DIR
 source ~/.bashrc
 conda activate lungsounds
+cd ../models
 
-# python contrastive.py --mode pretrain --task demo --log_dir demo0-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 0
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 0
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 1
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 2
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 3
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 4
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 5
+python contrastive.py --mode pretrain --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 6
 
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear --train_prop .01
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear
+done 
 
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo0-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo0-pre-lung-large --data ../data
+for i in 1 2 3 4 5 6 7 8 9 10
+do 
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5 6 7 8 9 10
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear --train_prop .1
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear
+done
 
-# python contrastive.py --mode pretrain --task demo --log_dir demo1-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 1
-
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo1-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo1-pre-lung-large --data ../data
-
-# python contrastive.py --mode pretrain --task demo --log_dir demo2-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 2
-
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo2-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo2-pre-lung-large --data ../data
-
-# python contrastive.py --mode pretrain --task demo --log_dir demo3-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 3
-
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator linear --train_prop .01
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator linear --train_prop .1
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-# python contrastive.py --mode train --task demo --log_dir demo3-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-# python contrastive.py --mode test --task demo --log_dir demo3-pre-lung-large --data ../data
-
-# python contrastive.py --mode pretrain --task demo --log_dir demo4-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 4
-
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo4-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo4-pre-lung-large --data ../data
-
-# python contrastive.py --mode pretrain --task demo --log_dir demo5-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 5
-
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo5-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo5-pre-lung-large --data ../data
-
-# python contrastive.py --mode pretrain --task demo --log_dir demo6-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 6
-
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop .01 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop .1 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
-
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator linear --train_prop .01
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator linear --train_prop .1
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
-python contrastive.py --mode train --task demo --log_dir demo6-pre-lung-large --data ../data --evaluator linear --train_prop 1.
-python contrastive.py --mode test --task demo --log_dir demo6-pre-lung-large --data ../data
+for i in 1 2 3 4 5
+do 
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune --train_prop 1.0 --epoch 25
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator fine-tune
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo0-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo1-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo2-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo3-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo4-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo5-pre-lung-large --data ../data --evaluator linear
+done
+for i in 1 2 3 4 5
+do
+  python contrastive.py --mode train --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear --train_prop 1.
+  python contrastive.py --mode test --task demo --log_dir 2_10/demo6-pre-lung-large --data ../data --evaluator linear
+done
 
 # done
 echo "Done"
