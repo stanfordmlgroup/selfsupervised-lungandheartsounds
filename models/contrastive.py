@@ -705,7 +705,9 @@ class ContrastiveLearner(object):
             # probs = expit(y.cpu())
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
-            output = model(X).float()
+
+            print(X.shape)
+            output = model(X).float()  #giving dimension error
             train_loss = loss(output.view(-1), y.view(-1))
             y_true.extend(y.tolist())
             y_pred.extend(output.tolist())
