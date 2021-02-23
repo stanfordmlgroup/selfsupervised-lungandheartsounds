@@ -537,36 +537,36 @@ class ContrastiveLearner(object):
                 pass
 
             else:
-                for i, model_weights in enumerate(glob(os.path.join(evaluator_dir, "evaluator_*.pt"))):
-                    loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
-                                             data=data)
-                    if encoder is None:
-                        if evaluator_type == 'fine-tune':
-                            model = self.get_model(1)
-                        elif evaluator_type == 'cnn':
-                            model = CNN(task, 1).to(self.device)
-                        state_dict = torch.load(model_weights)
-                        model.load_state_dict(state_dict)
-                        model.eval()
-                        ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
-                    elif evaluator_type == 'fine-tune':
-                        model = SSL(encoder).to(self.device)
-                        state_dict = torch.load(model_weights)
-                        model.load_state_dict(state_dict)
-                        model.eval()
-                        ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
-                    else:
-                        del loader
-                        id, X, y = get_scikit_loader(self.device, task, label_file, base_dir, split="test",
-                                                     encoder=encoder, data=data)
-                        model = Logistic(encoder.num_ftrs).to(self.device)
-                        state_dict = torch.load(model_weights)
-                        model.load_state_dict(state_dict)
-                        model.eval()
-                        ce, y_true, y_pred = self._predict(model, id, X, y, self.device, loss, log_file)
-                    _y_pred.append(expit(y_pred))
-                    print("Model {} Test BCE: {:.7f}".format(i, ce))
-                    out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
+                model_weights = os.path.join(evaluator_dir, "evaluator_{}.pt".format(model_num))
+                loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
+                                         data=data)
+                if encoder is None:
+                    if evaluator_type == 'fine-tune':
+                        model = self.get_model(1)
+                    elif evaluator_type == 'cnn':
+                        model = CNN(task, 1).to(self.device)
+                    state_dict = torch.load(model_weights)
+                    model.load_state_dict(state_dict)
+                    model.eval()
+                    ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+                elif evaluator_type == 'fine-tune':
+                    model = SSL(encoder).to(self.device)
+                    state_dict = torch.load(model_weights)
+                    model.load_state_dict(state_dict)
+                    model.eval()
+                    ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+                else:
+                    del loader
+                    id, X, y = get_scikit_loader(self.device, task, label_file, base_dir, split="test",
+                                                 encoder=encoder, data=data)
+                    model = Logistic(encoder.num_ftrs).to(self.device)
+                    state_dict = torch.load(model_weights)
+                    model.load_state_dict(state_dict)
+                    model.eval()
+                    ce, y_true, y_pred = self._predict(model, id, X, y, self.device, loss, log_file)
+                _y_pred.append(expit(y_pred))
+                print("Model {} Test BCE: {:.7f}".format(1, ce))
+                out.write("Model {} Test BCE: {:.7f}\n".format(1, ce))
             _y_pred = np.average(_y_pred, axis=0)
             # auc_cat = lo.auc_per_cat(y_true, expit(_y_pred), labels)
             # out.write("\nPer category AUC:")
@@ -874,7 +874,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     pass
 
 
-def test_(task, base_dir, log_dir, evaluator, seed=None):
+def test_(task, base_dir, log_dir, evaluator, seed=None, model_num=0):
     log_file = os.path.join(log_dir, f"test_log.txt")
     with open(log_file, "w") as f:
         f.write(f"Seed: {seed}\n")
@@ -887,7 +887,7 @@ def test_(task, base_dir, log_dir, evaluator, seed=None):
         encoder.load_state_dict(state_dict)
     except FileNotFoundError:
         encoder = None
-    learner.test(task, label_file, log_file, encoder, log_dir, evaluator_type=evaluator)
+    learner.test(task, label_file, log_file, encoder, log_dir, evaluator_type=evaluator, model_num=model_num)
 
 
 if __name__ == "__main__":
@@ -905,6 +905,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--full_data", default=False)
     parser.add_argument("--exp", type=int, default=None)
+    parser.add_argument("--model_num", type=int, default=0)
 
     args = parser.parse_args()
 
@@ -954,4 +955,4 @@ if __name__ == "__main__":
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
-        test_(args.task, base_dir, log_dir, args.evaluator, seed)
+        test_(args.task, base_dir, log_dir, args.evaluator, seed, args.model_num)
