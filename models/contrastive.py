@@ -491,7 +491,7 @@ class ContrastiveLearner(object):
 
         pass
 
-    def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, ):
+    def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, model_num=0):
         _y_pred = []
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights

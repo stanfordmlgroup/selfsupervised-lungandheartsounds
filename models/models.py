@@ -99,7 +99,6 @@ class ResNetSimCLR(torch.nn.Module):
             x = self.l2(x)
             return x
         else:
-            print(h)
             return h
 
 class CNN(torch.nn.Module):
