@@ -4,7 +4,7 @@ import os
 import torch
 from torch.utils.data import Dataset, DataLoader
 import sys
-
+from tqdm import tqdm
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 from features import Mel, get_vggish_embedding, preprocess
@@ -461,6 +461,8 @@ class LungDataset(Dataset):
                 df = self.get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
+            elif split == "val":
+                df = self.get_split(df, os.path.join(splits_dir, "val.txt"))
             else:
                 raise Exception("Invalid split value. Must be train or test.")
         if data is None:
@@ -487,7 +489,7 @@ class LungDataset(Dataset):
         row = self.labels.iloc[idx]
         X = self.data[idx]
         y = self.get_class_val(row)
-        if self.split == "test":
+        if self.split == "test" or self.split == "val":
             X, y = process_data(self.split, self.transform, X, y, self.norm_func)
             return row["cycle"], X, y
         return process_data(self.split, self.transform, X, y, self.norm_func)
@@ -546,6 +548,8 @@ class HeartDataset(Dataset):
                 df = self.get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
+            elif split == "val":
+                df = self.get_split(df, os.path.join(splits_dir, "val.txt"))
             else:
                 raise Exception("Invalid split value. Must be pretrain or train or test.")
         if data is None:
@@ -574,7 +578,7 @@ class HeartDataset(Dataset):
 
         # Get label
         y = self.get_class_val(row)
-        if self.split == "test":
+        if self.split == "test" or self.split == "val":
             X, y = process_data(self.split, self.transform, X, y, self.norm_func)
             return row["ID"], X, y
         return process_data(self.split, self.transform, X, y, self.norm_func)
@@ -613,6 +617,8 @@ class HeartChallengeDataset(Dataset):
                 df = self.get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
+            elif split == "val":
+                df = self.get_split(df, os.path.join(splits_dir, "val.txt"))
             else:
                 raise Exception("Invalid split value. Must be train or test.")
         if data is None:
@@ -641,7 +647,7 @@ class HeartChallengeDataset(Dataset):
         X = self.data[idx]
         # Get label
         y = self.get_class_val(row)
-        if self.split == "test":
+        if self.split == "test" or self.split == "val":
             X, y = process_data(self.split, self.transform, X, y, self.norm_func)
             return row["ID"], X, y
         return process_data(self.split, self.transform, X, y, self.norm_func)
@@ -760,7 +766,7 @@ def get_scikit_loader(device, task, label_file, base_dir, split="train", df=None
     y = []
     id = []
     for data in dataset:
-        if split == "test":
+        if split == "test" or split == "val":
             x = data[1]
             y.append(data[2])
             id.append(data[0])
@@ -774,7 +780,7 @@ def get_scikit_loader(device, task, label_file, base_dir, split="train", df=None
                 x = encoder(x, tune=True)
         X.append(x.cpu().detach().numpy())
 
-    if split == "test":
+    if split == "test" or split == "val":
         return id, X, y
     return X, y
 
@@ -810,7 +816,7 @@ def h5ify(base_dir, label_file, train_prop):
     print('building: ' + filename)
 
     splits_dir = os.path.join(base_dir, "splits")
-    __splits__ = ['train', 'test', 'pretrain']
+    __splits__ = ['train', 'val', 'test', 'pretrain']
     h5_dir = base_dir + "/processed/" + filename
     with h5.File(h5_dir, 'w') as f:
         for split in __splits__:
@@ -820,6 +826,8 @@ def h5ify(base_dir, label_file, train_prop):
                 df = pd.read_csv(label_file)
                 if split == "train":
                     df = get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
+                elif split == "val":
+                    df = get_split(df, os.path.join(splits_dir, "val.txt"), train_prop=train_prop)
                 elif split == "pretrain":
                     df = get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
                 elif split == "test":
@@ -831,14 +839,13 @@ def h5ify(base_dir, label_file, train_prop):
 
             if 'cycle' in df.columns:
                 counter = 0
-                for idx, row in df.iterrows():
-                    print(row['cycle'], counter)
+                for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
                     counter += 1
                     audio, sample_rate = get_data(row['cycle'])
                     audio_samples.append(audio)
 
             else:
-                for idx, row in df.iterrows():
+                for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
                     audio, sample_rate = get_data(row['ID'])
                     audio_samples.append(audio)
             audio_samples = np.array(audio_samples)

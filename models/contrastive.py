@@ -197,183 +197,80 @@ class ContrastiveLearner(object):
         data = self.dataset.data
         total_train_acc = 0
         total_test_acc = 0
-        # if len(df.index) > 10:
-        #     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=345)
-        #     indices = kf.split(df, df["y"])
-        # else:
-        train_idx = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
-        test_idx = []
-        for i in range(0, len(df.index)):
-            if i not in train_idx:
-                test_idx.append(i)
-        indices = [(train_idx, test_idx)]
-        self.batch_size = min(self.batch_size, len(train_idx))
+        self.batch_size = min(self.batch_size, data.shape[0])
         print('Batch Size: {}'.format(self.batch_size))
+        test_dataset = get_dataset(task, label_file, base_dir, split="val")
+
+        model_id = len(glob(os.path.join(log_dir, "evaluator_*")))
+
+        print("training model with id: {}".format(model_id))
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
-        loss = BCEWithLogitsLoss().to(self.device)
-        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
-            for fold, (train_idx, test_idx) in enumerate(indices):
-                start_fold = time.time()
 
-                train_df = df.iloc[train_idx]
-                test_df = df.iloc[test_idx]
-                train_data = data[train_idx]
-                test_data = data[test_idx]
-                encoder = copy.deepcopy(base_encoder).to(self.device)
-                if evaluator_type == "linear":
-                    for layer in encoder.children():
-                        for param in layer.parameters():
-                            param.requires_grad = False
-                    model = Logistic(encoder.num_ftrs).to(self.device)
-                    train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", train_df,
-                                                         encoder, data=train_data)
-                    id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "test", test_df,
-                                                           encoder, data=test_data)
-                    optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
-                                                  lr=10 * learning_rate)
+            train_df = df
+            test_df = test_dataset.labels
+            train_data = data
+            test_data = test_dataset.data
+            encoder = copy.deepcopy(base_encoder).to(self.device)
+            if evaluator_type == "linear":
+                for layer in encoder.children():
+                    for param in layer.parameters():
+                        param.requires_grad = False
+                model = Logistic(encoder.num_ftrs).to(self.device)
+                train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", train_df,
+                                                     encoder, data=train_data)
+                id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "val", test_df,
+                                                       encoder, data=test_data)
+                optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
+                                              lr=10 * learning_rate)
 
-                    fold_train_acc = 0
-                    fold_test_acc = 0
-                    counter = 0
-                    best_test_loss = np.inf
-                    epoch = 0
-                    for epoch in range(1, self.epochs + 1):
-                        start = time.time()
-                        train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
-                                                                            self.device,
-                                                                            loss)
-                        test_loss, test_true, test_pred = self._predict(model, id, test_X, test_y, self.device, loss)
-                        train_pred, test_pred = expit(train_pred), expit(test_pred)
-                        train_accuracy = lo.get_accuracy(train_true, train_pred)
-                        test_accuracy = lo.get_accuracy(test_true, test_pred)
-                        if test_loss < best_test_loss:
-                            lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
-                            best_test_loss = test_loss
-                            counter = 0
-                        else:
-                            counter += 1
-                        try:
-                            roc_score = roc_auc_score(test_true, test_pred)
-                        except:
-                            roc_score = 0
-                        fold_train_acc += train_accuracy
-                        fold_test_acc += test_accuracy
-                        if counter == self.epochs//5:
-                            print("Early stop...")
-                            break
+                counter = 0
+                best_test_loss = np.inf
+                epoch = 0
+                for epoch in range(1, self.epochs + 1):
+                    start = time.time()
+                    train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
+                                                                        self.device,
+                                                                        loss)
+                    test_loss, test_true, test_pred = self._predict(model, id, test_X, test_y, self.device, loss)
+                    train_pred, test_pred = expit(train_pred), expit(test_pred)
+                    train_accuracy = lo.get_accuracy(train_true, train_pred)
+                    test_accuracy = lo.get_accuracy(test_true, test_pred)
+                    if test_loss < best_test_loss:
+                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
+                        best_test_loss = test_loss
+                        counter = 0
+                    else:
+                        counter += 1
+                    try:
+                        roc_score = roc_auc_score(test_true, test_pred)
+                    except:
+                        roc_score = 0
+                    # if counter == self.epochs//5:
+                    #     print("Early stop...")
+                    #     break
+                    total_train_acc += train_accuracy
+                    total_test_acc += test_accuracy
 
-                elif evaluator_type == "fine-tune":
-                    model = SSL(encoder).to(self.device)
-                    train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                                   data=train_data)
-                    test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-                    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-                    fold_train_acc = 0
-                    fold_test_acc = 0
-                    counter = 0
-                    best_test_loss = np.inf
-                    epoch = 0
-                    counter =0
-                    for epoch in range(1, self.epochs + 1):
-                        start = time.time()
-                        train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
-                                                                         loss)
-                        test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
-                        train_pred, test_pred = expit(train_pred), expit(test_pred)
-                        train_accuracy = lo.get_accuracy(train_true, train_pred)
-                        test_accuracy = lo.get_accuracy(test_true, test_pred)
-
-                        if test_loss < best_test_loss:
-                            lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
-                            best_test_loss = test_loss
-                            counter=0
-                        else:
-                            counter+=1
-                        if counter == self.epochs//5:
-                            print("Early stop...")
-                            break
-                        try:
-                            roc_score = roc_auc_score(test_true, test_pred)
-                        except:
-                            roc_score = 0
-                        elapsed = time.time() - start
-                        print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-                        print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                        print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
-                                                                                             test_accuracy, roc_score))
-                        with open(log_file, "a+") as log:
-                            log.write(
-                                "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
-                                    epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
-                                )
-                            )
-
-                        fold_train_acc += train_accuracy
-                        fold_test_acc += test_accuracy
-
-                fold_train_acc /= float(epoch)
-                fold_test_acc /= float(epoch)
-
-                elapsed_fold = time.time() - start_fold
-                total_train_acc += fold_train_acc
-                total_test_acc += fold_test_acc
-                print(
-                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-                        fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
-                    )
-                )
-                with open(log_file, "a+") as log:
-                    log.write(
-                        "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-                            fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
-                        )
-                    )
-                del model
-                torch.cuda.empty_cache()
-
-            total_train_acc /= float(n_splits)
-            total_test_acc /= float(n_splits)
-            print(
-                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
-                                                                                               total_test_acc))
-            with open(log_file, "a+") as log:
-                log.write(
-                    "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-                        total_train_acc, total_test_acc
-                    )
-                )
-
-        else:
-            print("No encoder provided. Supervised Training...\n")
-            for fold, (train_idx, test_idx) in enumerate(indices):
-                start_fold = time.time()
-                if evaluator_type == 'fine-tune':
-                    model = self.get_model(1)
-                elif evaluator_type == 'cnn':
-                    model = CNN(task, 1).to(self.device)
-                train_df = df.iloc[train_idx]
-                test_df = df.iloc[test_idx]
-                train_data = data[train_idx]
-                test_data = data[test_idx]
+            elif evaluator_type == "fine-tune":
+                model = SSL(encoder).to(self.device)
                 train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                               transform=augment, data=train_data)
-                test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-                # learning_rate = learning_rate * 10.0
-                # print("LR: {:.7f}".format(learning_rate))
+                                               data=train_data)
+                test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
                 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-                fold_train_acc = 0
-                fold_test_acc = 0
-                best_test_loss = np.inf
                 counter = 0
+                best_test_loss = np.inf
+                epoch = 0
+                counter =0
                 for epoch in range(1, self.epochs + 1):
                     start = time.time()
                     train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -382,25 +279,25 @@ class ContrastiveLearner(object):
                     train_pred, test_pred = expit(train_pred), expit(test_pred)
                     train_accuracy = lo.get_accuracy(train_true, train_pred)
                     test_accuracy = lo.get_accuracy(test_true, test_pred)
+
+                    if test_loss < best_test_loss:
+                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
+                        best_test_loss = test_loss
+                        counter=0
+                    else:
+                        counter+=1
+                    # if counter == self.epochs//5:
+                    #     print("Early stop...")
+                    #     break
                     try:
                         roc_score = roc_auc_score(test_true, test_pred)
                     except:
                         roc_score = 0
-                    if test_loss < best_test_loss:
-                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(fold) + ".pt"))
-                        best_test_loss = test_loss
-                        counter = 0
-                    else:
-                        counter += 1
-                    if counter == self.epochs // 5:
-                        print("Early stop...")
-                        break
-
                     elapsed = time.time() - start
                     print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                     print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                    print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
-                                                                                         roc_score))
+                    print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
+                                                                                         test_accuracy, roc_score))
                     with open(log_file, "a+") as log:
                         log.write(
                             "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
@@ -408,38 +305,78 @@ class ContrastiveLearner(object):
                             )
                         )
 
-                    fold_train_acc += train_accuracy
-                    fold_test_acc += test_accuracy
+                    total_train_acc += train_accuracy
+                    total_test_acc += test_accuracy
 
-                elapsed_fold = time.time() - start_fold
+            del model
+            torch.cuda.empty_cache()
 
-                fold_train_acc /= float(self.epochs)
-                fold_test_acc /= float(self.epochs)
-                total_train_acc += fold_train_acc
-                total_test_acc += fold_test_acc
-                print(
-                    "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-                        fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
-                    )
-                )
+
+        else:
+            print("No encoder provided. Supervised Training...\n")
+            if evaluator_type == 'fine-tune':
+                model = self.get_model(1)
+            elif evaluator_type == 'cnn':
+                model = CNN(task, 1).to(self.device)
+            train_df = df
+            test_df = test_dataset.labels
+            train_data = data
+            test_data = test_dataset.data
+            train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
+                                           transform=augment, data=train_data)
+            test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
+            # learning_rate = learning_rate * 10.0
+            # print("LR: {:.7f}".format(learning_rate))
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
+
+            best_test_loss = np.inf
+            counter = 0
+            for epoch in range(1, self.epochs + 1):
+                start = time.time()
+                train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
+                                                                 loss)
+                test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                train_pred, test_pred = expit(train_pred), expit(test_pred)
+                train_accuracy = lo.get_accuracy(train_true, train_pred)
+                test_accuracy = lo.get_accuracy(test_true, test_pred)
+                try:
+                    roc_score = roc_auc_score(test_true, test_pred)
+                except:
+                    roc_score = 0
+                if test_loss < best_test_loss:
+                    lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
+                    best_test_loss = test_loss
+                    counter = 0
+                else:
+                    counter += 1
+                # if counter == self.epochs // 5:
+                #     print("Early stop...")
+                #     break
+
+                elapsed = time.time() - start
+                print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
+                print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
+                print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
+                                                                                     roc_score))
                 with open(log_file, "a+") as log:
                     log.write(
-                        "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-                            fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
+                        "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
+                            epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
                         )
                     )
 
-            total_train_acc /= float(n_splits)
-            total_test_acc /= float(n_splits)
-            print(
-                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
-                                                                                               total_test_acc))
-            with open(log_file, "a+") as log:
-                log.write(
-                    "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-                        total_train_acc, total_test_acc
-                    )
+                total_train_acc += train_accuracy
+                total_test_acc += test_accuracy
+
+        print(
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc/epoch,
+                                                                                           total_test_acc/epoch))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
+                    total_train_acc/epoch, total_test_acc/epoch
                 )
+            )
 
     # Utilize KL Divergence Loss Function here
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
