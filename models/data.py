@@ -853,7 +853,7 @@ def h5ify(base_dir, label_file, train_prop):
 
 
 if __name__ == '__main__':
-    __tasks__ = ['disease', 'crackle', 'wheeze', 'heartchallenge']  # ,'heart']
+    __tasks__ = ['disease', 'crackle', 'wheeze', 'heartchallenge', 'heart']
     __train_props__ = [1.0]
     for task in __tasks__:
         if task == 'disease' or task == 'crackle' or task == 'wheeze':
