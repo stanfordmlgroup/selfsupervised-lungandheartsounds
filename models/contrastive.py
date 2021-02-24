@@ -51,12 +51,12 @@ class ContrastiveLearner(object):
         print("Running on:", device)
         return device
 
-    def get_model(self, out_dim):
+    def get_model(self, out_dim, restore=False):
         model = ResNetSimCLR(out_dim=out_dim, base_model="resnet18").to(self.device)
-        model = self._load_pre_trained_weights(model)
+        model = self._load_pre_trained_weights(model, restore=restore)
         return model
 
-    def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0.):
+    def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0., restore=False):
         df = self.dataset.labels.reset_index()
         data = self.dataset.data
         # scaler = preprocessing.StandardScaler()
@@ -78,7 +78,7 @@ class ContrastiveLearner(object):
         if self.model is not None:
             model = self.model
         else:
-            model = self.get_model(out_dim=256)
+            model = self.get_model(out_dim=256, restore=restore)
 
         optimizer = torch.optim.Adam(model.parameters(), learning_rate, weight_decay=10E-6)
 
@@ -209,8 +209,8 @@ class ContrastiveLearner(object):
         # weights = weights / weights.sum()
         pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
         loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
-        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
@@ -270,7 +270,7 @@ class ContrastiveLearner(object):
                 counter = 0
                 best_test_loss = np.inf
                 epoch = 0
-                counter =0
+                counter = 0
                 for epoch in range(1, self.epochs + 1):
                     start = time.time()
                     train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -283,9 +283,9 @@ class ContrastiveLearner(object):
                     if test_loss < best_test_loss:
                         lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
                         best_test_loss = test_loss
-                        counter=0
+                        counter = 0
                     else:
-                        counter+=1
+                        counter += 1
                     # if counter == self.epochs//5:
                     #     print("Early stop...")
                     #     break
@@ -369,12 +369,12 @@ class ContrastiveLearner(object):
                 total_test_acc += test_accuracy
 
         print(
-            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc/epoch,
-                                                                                           total_test_acc/epoch))
+            "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc / epoch,
+                                                                                           total_test_acc / epoch))
         with open(log_file, "a+") as log:
             log.write(
                 "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-                    total_train_acc/epoch, total_test_acc/epoch
+                    total_train_acc / epoch, total_test_acc / epoch
                 )
             )
 
@@ -599,11 +599,14 @@ class ContrastiveLearner(object):
             # out.write("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
         return loss
 
-    def _load_pre_trained_weights(self, model):
+    def _load_pre_trained_weights(self, model, restore=False):
         try:
-            state_dict = torch.load(os.path.join(self.log_dir, 'encoder.pth'))
-            model.load_state_dict(state_dict)
-            print("Loaded pretrained model with success.")
+            if restore:
+                state_dict = torch.load(os.path.join(self.log_dir, 'encoder.pth'))
+                model.load_state_dict(state_dict)
+                print("Loaded pretrained model with success.")
+            else:
+                raise FileNotFoundError
         except FileNotFoundError:
             print("pretrained weights not found.")
 
@@ -644,7 +647,7 @@ class ContrastiveLearner(object):
             optimizer.zero_grad()
 
             print(X.shape)
-            output = model(X).float()  #giving dimension error
+            output = model(X).float()  # giving dimension error
             train_loss = loss(output.view(-1), y.view(-1))
             y_true.extend(y.tolist())
             y_pred.extend(output.tolist())
@@ -784,7 +787,7 @@ class ContrastiveLearner(object):
         return valid_loss
 
 
-def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None):
+def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None, restore=False):
     log_file = os.path.join(log_dir, f"pretraintrain_log.txt")
 
     num_epochs = epochs
@@ -803,7 +806,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None):
     dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop, exp=exp)
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
-    learner.pre_train(log_file, task, label_file, augment, learning_rate)
+    learner.pre_train(log_file, task, label_file, augment, learning_rate, restore=restore)
 
 
 def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
@@ -906,6 +909,7 @@ if __name__ == "__main__":
     parser.add_argument("--full_data", default=False)
     parser.add_argument("--exp", type=int, default=None)
     parser.add_argument("--model_num", type=int, default=0)
+    parser.add_argument("--restore", default=False)
 
     args = parser.parse_args()
 
@@ -920,7 +924,7 @@ if __name__ == "__main__":
             log_dir = os.path.join(base_dir, "logs", log_dir)
         print(f"Log Dir: {log_dir}")
         fi.make_path(log_dir)
-        pretrain_(args.epochs, args.task, base_dir, log_dir, args.augment, args.train_prop, args.exp)
+        pretrain_(args.epochs, args.task, base_dir, log_dir, args.augment, args.train_prop, args.exp, args.restore)
     elif args.mode == "train":
         if log_dir is None:
             now = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
