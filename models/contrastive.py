@@ -585,7 +585,7 @@ class ContrastiveLearner(object):
             conf_matrix = confusion_matrix(y_true, np.round(_y_pred))
             print("Ensemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(roc_score, report, conf_matrix))
             out.write(
-                "Seed: {}\tFolds: {}\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed, i + 1,
+                "Seed: {}\tFolds: {}\nEnsemble AUC-ROC: {:.7f}\n{}\nConfusion Matrix:\n{}\n".format(seed, 1,
                                                                                                     roc_score, report,
                                                                                                     conf_matrix))
 
