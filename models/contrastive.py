@@ -51,7 +51,7 @@ class ContrastiveLearner(object):
         print("Running on:", device)
         return device
 
-    def get_model(self, out_dim, restore=False):
+    def get_model(self, out_dim, restore=True):
         model = ResNetSimCLR(out_dim=out_dim, base_model="resnet18").to(self.device)
         model = self._load_pre_trained_weights(model, restore=restore)
         return model
@@ -215,6 +215,9 @@ class ContrastiveLearner(object):
             total_train_acc = 0
             base_encoder = encoder
 
+            train_auc = 0
+            test_auc = 0
+
             train_df = df
             test_df = test_dataset.labels
             train_data = data
@@ -235,6 +238,8 @@ class ContrastiveLearner(object):
                 counter = 0
                 best_test_loss = np.inf
                 epoch = 0
+
+                valid_auc_counter = 0
                 for epoch in range(1, self.epochs + 1):
                     start = time.time()
                     train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
@@ -251,15 +256,21 @@ class ContrastiveLearner(object):
                     else:
                         counter += 1
                     try:
-                        roc_score = roc_auc_score(test_true, test_pred)
+                        test_roc_score = roc_auc_score(test_true, test_pred)
+                        train_roc_score = roc_auc_score(train_true, train_pred)
+
+                        train_auc += train_roc_score
+                        test_auc += test_roc_score
+                        valid_auc_counter += 1
                     except:
-                        roc_score = 0
+                        pass
                     # if counter == self.epochs//5:
                     #     print("Early stop...")
                     #     break
                     total_train_acc += train_accuracy
                     total_test_acc += test_accuracy
-
+                train_auc /= valid_auc_counter
+                test_auc /= valid_auc_counter
             elif evaluator_type == "fine-tune":
                 model = SSL(encoder).to(self.device)
                 train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
@@ -377,6 +388,14 @@ class ContrastiveLearner(object):
                     total_train_acc / epoch, total_test_acc / epoch
                 )
             )
+
+        print(
+            "Total Cross Val Train auc: {:.7f}\tTotal Cross Val Test auc: {:.7f}\n".format(train_auc,
+                                                                                           test_auc))
+        with open(log_file, "a+") as log:
+            log.write(
+                "Total Cross Val Train auc: {:.7f}\tTotal Cross Val Test auc: {:.7f}\n".format(train_auc,
+                                                                                               test_auc))
 
     # Utilize KL Divergence Loss Function here
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
@@ -689,7 +708,7 @@ class ContrastiveLearner(object):
         y_true = []
         y_pred = []
         if log_file is not None:
-            with open(log_file, 'w') as f:
+            with open(log_file, 'a+') as f:
                 f.write("ID,pred_proba,label\n")
         for i, data in enumerate(loader):
             id, X, y = data
@@ -714,7 +733,7 @@ class ContrastiveLearner(object):
         y_true = []
         y_pred = []
         if log_file is not None:
-            with open(log_file, 'w') as f:
+            with open(log_file, 'a+') as f:
                 f.write("ID,pred_proba,label\n")
         X, y = torch.tensor(X).to(device).float(), torch.tensor(y).to(device).float()
         output = model(X)
@@ -879,7 +898,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
 def test_(task, base_dir, log_dir, evaluator, seed=None, model_num=0):
     log_file = os.path.join(log_dir, f"test_log.txt")
-    with open(log_file, "w") as f:
+    with open(log_file, "a+") as f:
         f.write(f"Seed: {seed}\n")
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
     dataset = get_dataset(task, label_file, base_dir, split="test")
