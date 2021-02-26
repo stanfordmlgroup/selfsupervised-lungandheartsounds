@@ -614,7 +614,8 @@ class HeartChallengeDataset(Dataset):
             if split == "train":
                 df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
             elif split == "pretrain":
-                df = self.get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
+                # no pretrain for heartchallenge, use train instead just for no error on random enc
+                df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             elif split == "val":
@@ -667,7 +668,7 @@ class HeartChallengeDataset(Dataset):
         with open(split_file_path, "r") as f:
             IDs = set([line.strip() for line in f])
             df = df[df.ID.isin(IDs)]
-            df = df.reset_index()
+            df = df.reset_index(drop=True)
             IDs = set(random.sample(IDs, int(train_prop * len(IDs))))
         return df[df.ID.isin(IDs)]
 

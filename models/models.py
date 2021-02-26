@@ -127,9 +127,9 @@ class CNN(torch.nn.Module):
         if self.task == "disease" or self.task == "symptom" or self.task=='crackle' or self.task=='wheeze':
             hidden_dim = 10240
         elif self.task == "heart":
-            hidden_dim = 157696
-        elif self.task == "heart_distill":
-            hidden_dim = 2805
+            hidden_dim = 140250 #Change for distill
+        # elif self.task == "heart_distill":
+        #     hidden_dim = 2805
         elif self.task == "heartchallenge":
             hidden_dim = 2048
 
@@ -142,7 +142,7 @@ class CNN(torch.nn.Module):
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        #print(x.shape)
+        print(x.shape)
         x = self.linear_layers(x)
         return x
 
