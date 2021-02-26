@@ -444,6 +444,8 @@ class ContrastiveLearner(object):
     # Utilize KL Divergence Loss Function here
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
+        print("Task is: " + str(task))
+        print("*********")
         df = self.dataset.labels
         data = self.dataset.data
         total_train_acc = 0
