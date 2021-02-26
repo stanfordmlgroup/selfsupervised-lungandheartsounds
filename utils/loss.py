@@ -123,7 +123,7 @@ def get_accuracy(labels, preds):
 
 class WeightedFocalLoss(nn.Module):
     """Non weighted version of Focal Loss"""
-    def __init__(self, alpha=.25, gamma=0):
+    def __init__(self, alpha=.25, gamma=5):
         super(WeightedFocalLoss, self).__init__()
         self.alpha = torch.tensor([alpha, 1 - alpha]).cuda()
         #print(self.alpha)

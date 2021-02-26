@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import argparse
 import file as fi
-
+from math import *
 
 def split_heart(input_path='../heart', split_dir='../heart/splits', seed=252,
                 distribution_dict=None):
@@ -141,9 +141,10 @@ def contrastive_split(input_path='../', seed=252):
         train_list.extend(list(diagnosis[diagnosis["diagnosis"] == diag]["ID"]))
     fi.make_path(os.path.join(input_path, 'data', 'splits'))
     train_split = os.path.join(input_path, 'data', 'splits', 'train.txt')
+    val_split = os.path.join(input_path, 'data', 'splits', 'val.txt')
     pre_train_split = os.path.join(input_path, 'data', 'splits', 'pretrain.txt')
     test_split = os.path.join(input_path, 'data', 'splits', 'test.txt')
-    distribution_dict = {-1: 13, 1: 13}
+    distribution_dict = {-1: 12, 1: 12}
     with open(test_split, "w") as test:
         test_list = []
         # take a random sample for each label
@@ -154,11 +155,20 @@ def contrastive_split(input_path='../', seed=252):
         for pId in test_list:
             test.write(str(pId) + "\n")
         print("Test samples: " + str(len(test_list)))
-
+    with open(val_split, "w") as test:
+        test_list = []
+        # take a random sample for each label
+        for diag in ds:
+            sample = random.sample(pIdbydiagnosis[diag], floor(.2*distribution_dict[diag]))
+            test_list.extend(sample)
+            pIdbydiagnosis[diag] = list(Counter(pIdbydiagnosis[diag]) - Counter(sample))
+        for pId in test_list:
+            test.write(str(pId) + "\n")
+        print("val samples: " + str(len(test_list)))
     with open(train_split, "w") as train:
         fine_tune_list = []
         for diag in ds:
-            sample = random.sample(pIdbydiagnosis[diag], distribution_dict[diag])
+            sample = random.sample(pIdbydiagnosis[diag], floor(.8*distribution_dict[diag]))
             fine_tune_list.extend(sample)
         for pId in fine_tune_list:
             train.write(str(pId) + "\n")
@@ -198,6 +208,7 @@ def contrastive_split(input_path='../', seed=252):
         train_list.extend(list(diagnosis[diagnosis["label"] == diag]["ID"]))
     fi.make_path(os.path.join(input_path, 'heartchallenge', 'splits'))
     train_split = os.path.join(input_path, 'heartchallenge', 'splits', 'train.txt')
+    val_split = os.path.join(input_path, 'heartchallenge', 'splits', 'val.txt')
     test_split = os.path.join(input_path, 'heartchallenge', 'splits', 'test.txt')
     distribution_dict = {-1: 76, 1: 76}
     with open(test_split, "w") as test:
@@ -208,6 +219,15 @@ def contrastive_split(input_path='../', seed=252):
         for pId in test_list:
             test.write(str(pId) + "\n")
         print("Test samples: " + str(len(test_list)))
+
+    with open(val_split, "w") as test:
+        test_list = []
+        # take a random sample for each label
+        for diag in ds:
+            test_list.extend(random.sample(pIdbydiagnosis[diag], floor(.2*distribution_dict[diag])))
+        for pId in test_list:
+            test.write(str(pId) + "\n")
+        print("Val samples: " + str(len(test_list)))
 
     with open(train_split, "w") as train:
         # create train split by subtracting out test files
@@ -232,6 +252,7 @@ def contrastive_split(input_path='../', seed=252):
         train_list.extend(list(diagnosis[diagnosis["label"] == diag]["ID"]))
     fi.make_path(os.path.join(input_path, 'heart', 'splits'))
     train_split = os.path.join(input_path, 'heart', 'splits', 'train.txt')
+    val_split = os.path.join(input_path, 'heart', 'splits', 'val.txt')
     pre_train_split = os.path.join(input_path, 'heart', 'splits', 'pretrain.txt')
     test_split = os.path.join(input_path, 'heart', 'splits', 'test.txt')
     distribution_dict = {-1: 324, 1: 324}
@@ -245,11 +266,20 @@ def contrastive_split(input_path='../', seed=252):
         for pId in test_list:
             test.write(str(pId) + "\n")
         print("Test samples: " + str(len(test_list)))
-
+    with open(val_split, "w") as test:
+        test_list = []
+        # take a random sample for each label
+        for diag in ds:
+            sample = random.sample(pIdbydiagnosis[diag], floor(.2*distribution_dict[diag]))
+            test_list.extend(sample)
+            pIdbydiagnosis[diag] = list(Counter(pIdbydiagnosis[diag]) - Counter(sample))
+        for pId in test_list:
+            test.write(str(pId) + "\n")
+        print("Val samples: " + str(len(test_list)))
     with open(train_split, "w") as train:
         fine_tune_list = []
         for diag in ds:
-            sample = random.sample(pIdbydiagnosis[diag], distribution_dict[diag])
+            sample = random.sample(pIdbydiagnosis[diag], floor(.8*distribution_dict[diag]))
             fine_tune_list.extend(sample)
         for pId in fine_tune_list:
             train.write(str(pId) + "\n")
