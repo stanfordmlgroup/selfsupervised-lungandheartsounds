@@ -128,6 +128,8 @@ class CNN(torch.nn.Module):
             hidden_dim = 10240
         elif self.task == "heart":
             hidden_dim = 157696
+        elif self.task == "heart_distill":
+            hidden_dim = 2805
         elif self.task == "heartchallenge":
             hidden_dim = 2048
 
