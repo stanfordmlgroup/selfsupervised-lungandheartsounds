@@ -127,9 +127,9 @@ class CNN(torch.nn.Module):
         if self.task == "disease" or self.task == "symptom" or self.task=='crackle' or self.task=='wheeze':
             hidden_dim = 10240
         elif self.task == "heart":
-            hidden_dim = 157696
-        elif self.task == "heart_distill":
-            hidden_dim = 2805
+            hidden_dim = 2805 #Change for distill
+        # elif self.task == "heart_distill":
+        #     hidden_dim = 2805
         elif self.task == "heartchallenge":
             hidden_dim = 2048
 

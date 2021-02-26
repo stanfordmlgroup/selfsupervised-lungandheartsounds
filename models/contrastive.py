@@ -918,7 +918,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default="train", choices={"pretrain", "train", "test", "distill"})
     parser.add_argument("--task", type=str, default=None,
-                        choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart", "heart_distill"})
+                        choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
     parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn"})
