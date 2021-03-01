@@ -58,6 +58,19 @@ def symptom_one_hot(label_list):
 
 def class_distribution(task, label_file):
     labelsdf = pd.read_csv(label_file)
+    IDs = set()
+
+    if task == 'disease' or task == 'crackle' or task == 'wheeze' or task == "demo":
+        base_dir = '../data'
+    else:
+        base_dir = '../' + task
+    split_file_path = os.path.join(base_dir, "splits", 'train.txt')
+
+    with open(split_file_path, "r") as f:
+        IDs = set([line.strip() for line in f])
+
+    labelsdf=labelsdf[labelsdf.ID.isin(IDs)]
+
     distribution = []
     if task == "symptom":
         labelsdf = labelsdf[["crackles", "wheezes"]]
@@ -67,7 +80,7 @@ def class_distribution(task, label_file):
     #     labelsdf = labelsdf["diagnosis"].apply(diag_one_hot)
     elif task == "heart" or task == "heartchallenge":
         labelsdf = labelsdf["label"].apply(heart_recover_label).apply(heart_one_hot)
-    elif task == "disease" or task == "wheeze" or task == "crackle" or task=="demo":
+    elif task == "disease" or task == "wheeze" or task == "crackle" or task == "demo":
         labelsdf = labelsdf["diagnosis"].apply(heart_recover_label).apply(heart_one_hot)
     # elif task == "heartchallenge":
     #     labelsdf = labelsdf["label"].apply(heartchallenge_one_hot)

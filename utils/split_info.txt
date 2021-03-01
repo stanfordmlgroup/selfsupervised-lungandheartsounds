@@ -1,0 +1,43 @@
+lungs
+diagnosis
+-1.0     322
+ 1.0    6576
+dtype: int64
+diagnosis
+-1.0    4528
+ 1.0    2370
+dtype: int64
+diagnosis
+-1.0    5506
+ 1.0    1392
+dtype: int64 
+
+1.0 - 477
+-1.0 - 99
+Test patients: 20
+1.0 - 428
+-1.0 - 113
+val patients: 20
+1.0 - 781
+-1.0 - 110
+Train patients: 20
+Pre-train patients: 86
+
+heartchallenge
+label
+-1    493
+ 1    271
+dtype: int64
+Test samples: 152
+Val samples: 152
+Train samples: 492
+
+heart
+label
+-1    2575
+ 1     665
+dtype: int64
+Test samples: 400
+Val samples: 400
+Train samples: 400
+Pre-train samples: 2440

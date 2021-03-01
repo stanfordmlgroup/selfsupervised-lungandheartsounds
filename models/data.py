@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import sys
 from tqdm import tqdm
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 from features import Mel, get_vggish_embedding, preprocess
@@ -52,7 +53,7 @@ class LungDatasetExp3(Dataset):
         self.ID_list = self.labels.ID.unique()
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([0], [1])
+        self.norm_func = transforms.Normalize([-0.0014936], [0.1282109])
 
         self.exp = exp
         if self.exp in [3, 4, 5, 6]:
@@ -480,7 +481,7 @@ class LungDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([0], [1])
+        self.norm_func = transforms.Normalize([-0.0014936], [0.1282109])
 
     def __len__(self):
         return len(self.labels)
@@ -567,7 +568,7 @@ class HeartDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([0], [1])
+        self.norm_func = transforms.Normalize([-0.0035824], [0.0735521])
 
     def __len__(self):
         return len(self.labels)
@@ -638,7 +639,7 @@ class HeartChallengeDataset(Dataset):
             df.at[idx, 'y'] = self.get_class_val(row)
         self.base_dir = base_dir
         self.transform = get_transform(transform)
-        self.norm_func = transforms.Normalize([0], [1])
+        self.norm_func = transforms.Normalize([-0.0000073], [0.0635951])
 
     def __len__(self):
         return len(self.labels)
@@ -834,23 +835,24 @@ def h5ify(base_dir, label_file, train_prop):
                 elif split == "test":
                     df = get_split(df, os.path.join(splits_dir, "test.txt"))
                 else:
-                    raise Exception("Invalid split value. Must be train or test.")
-            except:
+                    raise Exception("Invalid split value. Must be train or test or val or pretrain.")
+
+                if 'cycle' in df.columns:
+                    counter = 0
+                    for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
+                        counter += 1
+                        audio, sample_rate = get_data(row['cycle'])
+                        audio_samples.append(audio)
+
+                else:
+                    for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
+                        audio, sample_rate = get_data(row['ID'])
+                        audio_samples.append(audio)
+                audio_samples = np.array(audio_samples)
+                f.create_dataset(split, data=audio_samples)
+
+            except FileNotFoundError:
                 print('split not found and will not be added to archive')
-
-            if 'cycle' in df.columns:
-                counter = 0
-                for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
-                    counter += 1
-                    audio, sample_rate = get_data(row['cycle'])
-                    audio_samples.append(audio)
-
-            else:
-                for idx, row in tqdm(df.iterrows(), total=df.shape[0]):
-                    audio, sample_rate = get_data(row['ID'])
-                    audio_samples.append(audio)
-            audio_samples = np.array(audio_samples)
-            f.create_dataset(split, data=audio_samples)
 
 
 if __name__ == '__main__':
