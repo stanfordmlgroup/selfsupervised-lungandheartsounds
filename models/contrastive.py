@@ -662,16 +662,22 @@ class ContrastiveLearner(object):
         for i, data in enumerate(loader):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
+            print("X shape is:")
             print(X.shape)
+            print("****")
+            print("Y shape is:")
             print(y.shape)
+            print("****")
+            print("Model is:")
             print(teacher)
+            print("****")
 
             y = teacher(X)  # y is a tensor here
             # probs = expit(y.cpu())
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
 
-            print(X.shape)
+            #print(X.shape)
             output = model(X).float()  # giving dimension error
             train_loss = loss(output.view(-1), y.view(-1))
             y_true.extend(y.tolist())
