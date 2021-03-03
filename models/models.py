@@ -127,14 +127,12 @@ class CNN(torch.nn.Module):
         if self.task == "disease" or self.task == "symptom" or self.task=='crackle' or self.task=='wheeze':
             hidden_dim = 10240
         elif self.task == "heart":
-            hidden_dim = 90112 #Change for distill
-        # elif self.task == "heart_distill":
-        #     hidden_dim = 2805
+            hidden_dim = 90112 #Dimension for heart distill task
         elif self.task == "heartchallenge":
             hidden_dim = 2048
 
         self.linear_layers = Sequential(
-            # 118272 for disease/symptom, 157696 for heart, 219648 for heart challenge
+            # 118272 for disease/symptom, 157696 for old heart, 219648 for heart challenge
             Linear(hidden_dim, 256), ReLU(inplace=True), Linear(256, 128), ReLU(inplace=True),
             Linear(128, classes)
         )

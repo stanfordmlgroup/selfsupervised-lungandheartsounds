@@ -421,13 +421,13 @@ class ContrastiveLearner(object):
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
-        # loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
+        #loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
         # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
 
-        # Supervised Algo from above:
+        # Supervised Algo:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
             if evaluator_type == 'fine-tune':
@@ -654,7 +654,7 @@ class ContrastiveLearner(object):
         return ce, y_true, y_pred
 
     def _distill(self, model, teacher, loader, optimizer, device, loss):
-        # TODO: Test if two changes are all that's required
+        # TODO: Test if any additional changes needed
         model.train()
         teacher.to(self.device).eval()
         y_true = []
