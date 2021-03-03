@@ -58,9 +58,13 @@ class SSL(torch.nn.Module):
 
     def forward(self, x):
         x = self.encoder(x, tune=True)
+        print("Encoder x shape")
+        print(x.shape)
         if len(x.shape) == 1:
             x = x.unsqueeze(0)
         x = self.linear_layers(x)
+        print("Linear layer x shape")
+        print(x.shape)
         x = x.view(-1)
         return x
 
