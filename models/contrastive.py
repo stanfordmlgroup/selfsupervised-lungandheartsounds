@@ -19,8 +19,7 @@ import joblib
 import sys
 import copy
 
-from sklearn import preprocessing
-from matplotlib import pyplot as plt
+from torch.utils.tensorboard import SummaryWriter
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
@@ -211,6 +210,7 @@ class ContrastiveLearner(object):
         loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs',str(model_id)))
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
@@ -262,6 +262,9 @@ class ContrastiveLearner(object):
                         train_auc += train_roc_score
                         test_auc += test_roc_score
                         valid_auc_counter += 1
+
+                        writer.add_scalar('AUC/train', train_roc_score, epoch)
+                        writer.add_scalar('AUC/val', test_roc_score, epoch)
                     except:
                         pass
                     # if counter == self.epochs//5:

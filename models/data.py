@@ -468,7 +468,7 @@ class LungDataset(Dataset):
                 raise Exception("Invalid split value. Must be train or test.")
         if data is None:
             try:
-                file = base_dir + '/processed/' + task + '_1.0.h5'
+                file = base_dir + '/processed/' + 'disease' + '_1.0.h5'
                 file = h5.File(file, 'r')
                 data = file[split][df.index.tolist()]
             except:
@@ -627,7 +627,10 @@ class HeartChallengeDataset(Dataset):
             try:
                 file = base_dir + '/processed/heartchallenge_1.0.h5'
                 file = h5.File(file, 'r')
-                data = file[split][df.index.tolist()]
+                if split == 'pretrain':
+                    data = file['train'][df.index.tolist()]
+                else:
+                    data = file[split][df.index.tolist()]
             except:
                 raise Exception("Data not found")
         self.data = data
