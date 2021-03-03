@@ -662,6 +662,10 @@ class ContrastiveLearner(object):
         for i, data in enumerate(loader):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
+            print(X.shape)
+            print(y.shape)
+            print(teacher)
+
             y = teacher(X)  # y is a tensor here
             # probs = expit(y.cpu())
             # print(X.mean(),X.std(),y)
