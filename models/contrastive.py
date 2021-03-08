@@ -712,18 +712,17 @@ class ContrastiveLearner(object):
             print("Prediction is:")
             #print(probs)
             print(y)
-
-            # print(X.mean(),X.std(),y)
-            optimizer.zero_grad()
-
-            #print(X.shape)
-            output = model(X).float()  # giving dimension error
-            train_loss = loss(output.view(-1), y.view(-1))
-            y_true.extend(y.tolist())
-            y_pred.extend(output.tolist())
-            train_loss = train_loss.cuda()
-            train_loss.backward()
-            optimizer.step()
+            print(X.mean(),X.std(),y)
+            # optimizer.zero_grad()
+            #
+            # #print(X.shape)
+            # output = model(X).float()  # giving dimension error
+            # train_loss = loss(output.view(-1), y.view(-1))
+            # y_true.extend(y.tolist())
+            # y_pred.extend(output.tolist())
+            # train_loss = train_loss.cuda()
+            # train_loss.backward()
+            # optimizer.step()
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
         # print(y_pred)
         return ce, y_true, y_pred
