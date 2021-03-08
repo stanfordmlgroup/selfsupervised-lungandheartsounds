@@ -709,6 +709,7 @@ class ContrastiveLearner(object):
 
             y = teacher(X)  # y is a tensor here
             #probs = expit(y.cpu())
+            print("Iteration number: " + str(i))
             print("Prediction is:")
             #print(probs)
             print(y)
