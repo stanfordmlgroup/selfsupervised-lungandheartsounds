@@ -708,10 +708,10 @@ class ContrastiveLearner(object):
             # print("****")
 
             y = teacher(X)  # y is a tensor here
-            probs = expit(y.cpu())
+            #probs = expit(y.cpu())
             print("Prediction is:")
-            print(probs)
-
+            #print(probs)
+            print(y)
 
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
