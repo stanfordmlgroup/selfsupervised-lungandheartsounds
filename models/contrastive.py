@@ -692,18 +692,21 @@ class ContrastiveLearner(object):
         teacher.to(self.device).eval()
         y_true = []
         y_pred = []
+
+        print(loader)
         for i, data in enumerate(loader):
+            print(data)
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            print("X shape is:")
-            print(X.shape)
-            print("****")
-            print("Y shape is:")
-            print(y.shape)
-            print("****")
-            print("Model is:")
-            print(teacher)
-            print("****")
+            # print("X shape is:")
+            # print(X.shape)
+            # print("****")
+            # print("Y shape is:")
+            # print(y.shape)
+            # print("****")
+            # print("Model is:")
+            # print(teacher)
+            # print("****")
 
             y = teacher(X)  # y is a tensor here
             # probs = expit(y.cpu())
