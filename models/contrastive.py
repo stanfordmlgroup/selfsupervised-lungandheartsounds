@@ -724,6 +724,7 @@ class ContrastiveLearner(object):
             # train_loss = train_loss.cuda()
             # train_loss.backward()
             # optimizer.step()
+        print("Loop finished successfully")
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
         # print(y_pred)
         return ce, y_true, y_pred
