@@ -89,6 +89,8 @@ class ContrastiveLearner(object):
         fi.make_path(os.path.join(log_dir, 'checkpoints'))
         torch.save(model.state_dict(),
                    os.path.join(self.log_dir, 'encoder.pth'))
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs',datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
+        batch_counter=0
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
@@ -129,6 +131,8 @@ class ContrastiveLearner(object):
                     loss.backward()
                     optimizer.step()
                     epoch_loss += loss
+                    writer.add_scalar('loss/pretrain',loss,batch_counter)
+                    batch_counter+=1
             epoch_loss /= float(num_batches)
             # validate the model
             valid_loss = self._validate(model, valid_loader)
@@ -210,13 +214,13 @@ class ContrastiveLearner(object):
         loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
-        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs',str(model_id)))
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', str(model_id)))
+        valid_auc_counter = 0
+        train_auc = 0
+        test_auc = 0
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
-
-            train_auc = 0
-            test_auc = 0
 
             train_df = df
             test_df = test_dataset.labels
@@ -232,14 +236,12 @@ class ContrastiveLearner(object):
                                                      encoder, data=train_data)
                 id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "val", test_df,
                                                        encoder, data=test_data)
-                optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
-                                              lr=10 * learning_rate)
-
+                # optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
+                #                            lr=10 * learning_rate)
+                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
                 counter = 0
                 best_test_loss = np.inf
                 epoch = 0
-
-                valid_auc_counter = 0
                 for epoch in range(1, self.epochs + 1):
                     start = time.time()
                     train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
@@ -265,6 +267,8 @@ class ContrastiveLearner(object):
 
                         writer.add_scalar('AUC/train', train_roc_score, epoch)
                         writer.add_scalar('AUC/val', test_roc_score, epoch)
+                        writer.add_scalar('loss/train', train_loss, epoch)
+                        writer.add_scalar('loss/val', test_loss, epoch)
                     except:
                         pass
                     # if counter == self.epochs//5:
@@ -304,23 +308,36 @@ class ContrastiveLearner(object):
                     #     print("Early stop...")
                     #     break
                     try:
-                        roc_score = roc_auc_score(test_true, test_pred)
+                        test_roc_score = roc_auc_score(test_true, test_pred)
+                        train_roc_score = roc_auc_score(train_true, train_pred)
+
+                        train_auc += train_roc_score
+                        test_auc += test_roc_score
+                        valid_auc_counter += 1
+
+                        writer.add_scalar('AUC/train', train_roc_score, epoch)
+                        writer.add_scalar('AUC/val', test_roc_score, epoch)
+                        writer.add_scalar('loss/train', train_loss, epoch)
+                        writer.add_scalar('loss/val', test_loss, epoch)
                     except:
-                        roc_score = 0
+                        test_roc_score = 0
+                    total_train_acc += train_accuracy
+                    total_test_acc += test_accuracy
                     elapsed = time.time() - start
+
                     print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                     print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
                     print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
-                                                                                         test_accuracy, roc_score))
+                                                                                         test_accuracy, test_roc_score))
                     with open(log_file, "a+") as log:
                         log.write(
                             "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
-                                epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
+                                epoch, train_loss, test_loss, train_accuracy, test_accuracy, test_roc_score
                             )
                         )
 
-                    total_train_acc += train_accuracy
-                    total_test_acc += test_accuracy
+            train_auc /= valid_auc_counter
+            test_auc /= valid_auc_counter
 
             del model
             torch.cuda.empty_cache()
@@ -345,6 +362,7 @@ class ContrastiveLearner(object):
 
             best_test_loss = np.inf
             counter = 0
+
             for epoch in range(1, self.epochs + 1):
                 start = time.time()
                 train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -353,10 +371,21 @@ class ContrastiveLearner(object):
                 train_pred, test_pred = expit(train_pred), expit(test_pred)
                 train_accuracy = lo.get_accuracy(train_true, train_pred)
                 test_accuracy = lo.get_accuracy(test_true, test_pred)
+
                 try:
-                    roc_score = roc_auc_score(test_true, test_pred)
+                    test_roc_score = roc_auc_score(test_true, test_pred)
+                    train_roc_score = roc_auc_score(train_true, train_pred)
+
+                    train_auc += train_roc_score
+                    test_auc += test_roc_score
+                    valid_auc_counter += 1
+
+                    writer.add_scalar('AUC/train', train_roc_score, epoch)
+                    writer.add_scalar('AUC/val', test_roc_score, epoch)
+                    writer.add_scalar('loss/train', train_loss, epoch)
+                    writer.add_scalar('loss/val', test_loss, epoch)
                 except:
-                    roc_score = 0
+                    test_roc_score = 0
                 if test_loss < best_test_loss:
                     lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
                     best_test_loss = test_loss
@@ -371,17 +400,18 @@ class ContrastiveLearner(object):
                 print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                 print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
                 print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
-                                                                                     roc_score))
+                                                                                     test_roc_score))
                 with open(log_file, "a+") as log:
                     log.write(
                         "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
-                            epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
+                            epoch, train_loss, test_loss, train_accuracy, test_accuracy, test_roc_score
                         )
                     )
 
                 total_train_acc += train_accuracy
                 total_test_acc += test_accuracy
-
+            train_auc /= valid_auc_counter
+            test_auc /= valid_auc_counter
         print(
             "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc / epoch,
                                                                                            total_test_acc / epoch))
