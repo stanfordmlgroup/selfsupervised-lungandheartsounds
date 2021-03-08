@@ -693,7 +693,6 @@ class ContrastiveLearner(object):
         y_true = []
         y_pred = []
 
-        print(loader)
         for i, data in enumerate(loader):
             print(data)
             X, y = data
