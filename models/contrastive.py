@@ -694,7 +694,7 @@ class ContrastiveLearner(object):
         y_pred = []
 
         for i, data in enumerate(loader):
-            print(data)
+            #print(data)
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             # print("X shape is:")
@@ -708,7 +708,11 @@ class ContrastiveLearner(object):
             # print("****")
 
             y = teacher(X)  # y is a tensor here
-            # probs = expit(y.cpu())
+            probs = expit(y.cpu())
+            print("Prediction is:")
+            print(probs)
+
+
             # print(X.mean(),X.std(),y)
             optimizer.zero_grad()
 
