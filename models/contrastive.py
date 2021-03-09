@@ -210,7 +210,7 @@ class ContrastiveLearner(object):
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
         loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
@@ -454,10 +454,10 @@ class ContrastiveLearner(object):
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
         loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
-        pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        #loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
+        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
+        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
         # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
 
         # Supervised Algo:
@@ -550,7 +550,7 @@ class ContrastiveLearner(object):
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        # pos_weight = torch.tensor(weights[1].item() / weights[0].item()).to(self.device)
+        # pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
         loss = BCEWithLogitsLoss().to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
