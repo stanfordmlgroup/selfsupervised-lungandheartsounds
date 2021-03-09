@@ -692,32 +692,39 @@ class ContrastiveLearner(object):
         teacher.to(self.device).eval()
         y_true = []
         y_pred = []
+
         for i, data in enumerate(loader):
+            #print(data)
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            print("X shape is:")
-            print(X.shape)
-            print("****")
-            print("Y shape is:")
-            print(y.shape)
-            print("****")
-            print("Model is:")
-            print(teacher)
-            print("****")
+            # print("X shape is:")
+            # print(X.shape)
+            # print("****")
+            # print("Y shape is:")
+            # print(y.shape)
+            # print("****")
+            # print("Model is:")
+            # print(teacher)
+            # print("****")
 
             y = teacher(X)  # y is a tensor here
-            # probs = expit(y.cpu())
-            # print(X.mean(),X.std(),y)
-            optimizer.zero_grad()
-
-            #print(X.shape)
-            output = model(X).float()  # giving dimension error
-            train_loss = loss(output.view(-1), y.view(-1))
-            y_true.extend(y.tolist())
-            y_pred.extend(output.tolist())
-            train_loss = train_loss.cuda()
-            train_loss.backward()
-            optimizer.step()
+            probs = expit(y.cpu().detach().numpy())
+            print("Iteration number: " + str(i))
+            print("Prediction is:")
+            print(probs)
+            #print(y)
+            #print(X.mean(),X.std(),y)
+            # optimizer.zero_grad()
+            #
+            # #print(X.shape)
+            # output = model(X).float()  # giving dimension error
+            # train_loss = loss(output.view(-1), y.view(-1))
+            # y_true.extend(y.tolist())
+            # y_pred.extend(output.tolist())
+            # train_loss = train_loss.cuda()
+            # train_loss.backward()
+            # optimizer.step()
+        print("Loop finished successfully")
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
         # print(y_pred)
         return ce, y_true, y_pred
