@@ -691,29 +691,33 @@ class ContrastiveLearner(object):
         y_pred = []
 
         for i, data in enumerate(loader):
-            #print(data)
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            # print("X shape is:")
-            # print(X.shape)
-            # print("****")
-            # print("Y shape is:")
-            # print(y.shape)
-            # print("****")
-            # print("Model is:")
-            # print(teacher)
-            # print("****")
 
-            y = teacher(X)  # y is a tensor here
+            y = teacher(X)
+            print("Shape of y is:")
+            print(y.shape)
+
             probs = expit(y.cpu().detach().numpy())
             print("Iteration number: " + str(i))
+            print("Shape of probs is:")
+            print(probs.shape)
             print("Teacher Prediction is:")
             print(probs)
 
             student_y = model(X)
+            print("Shape of student_y is:")
+            print(student_y.shape)
             student_probs = expit(student_y.cpu().detach().numpy())
+            print("Shape of student_probs is:")
+            print(student_probs.shape)
+
             print("Student Prediction is:")
             print(student_probs)
+
+            #Calculate the loss:
+            # train_loss = loss(output.view(-1), y.view(-1))
+
 
             #print(y)
             #print(X.mean(),X.std(),y)
