@@ -694,14 +694,14 @@ class ContrastiveLearner(object):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
 
+            print("Iteration number: " + str(i))
+
             target_y = teacher(X)
             print("Shape of target_y is:")
             print(target_y.shape)
             target_probs = expit(target_y.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
-
-            #target_probs = torch.reshape(target_probs, (target_probs.shape[0], 1))
-            print("Iteration number: " + str(i))
+            target_probs_tensor = torch.reshape(target_probs_tensor, (target_probs_tensor.shape[0], 1))
             print("Shape of target_probs_tensor is:")
             print(target_probs_tensor.shape)
             print("Teacher Prediction is:")
@@ -712,6 +712,7 @@ class ContrastiveLearner(object):
             print(student_y.shape)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
+            student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
             print("Shape of student_probs_tensor is:")
             print(student_probs_tensor.shape)
 
