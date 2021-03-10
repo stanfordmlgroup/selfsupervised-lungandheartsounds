@@ -713,7 +713,7 @@ class ContrastiveLearner(object):
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
             student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
-            student_probs_tensor_backprop = torch.Variable(student_probs_tensor, requires_grad=True)
+            student_probs_tensor_backprop = torch.autograd.Variable(student_probs_tensor, requires_grad=True)
             # print("Shape of student_probs_tensor_backprop is:")
             # print(student_probs_tensor_backprop.shape)
             print("Student Prediction is:")
