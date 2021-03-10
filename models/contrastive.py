@@ -709,6 +709,12 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
             print("Teacher Prediction is:")
             print(probs)
+
+            student_y = model(X)
+            student_probs = expit(student_y.cpu().detach().numpy())
+            print("Student Prediction is:")
+            print(student_probs)
+
             #print(y)
             #print(X.mean(),X.std(),y)
             # optimizer.zero_grad()
