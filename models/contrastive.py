@@ -717,7 +717,7 @@ class ContrastiveLearner(object):
             # print("Shape of student_probs_tensor_backprop is:")
             # print(student_probs_tensor_backprop.shape)
             print("Student Prediction is:")
-            print(student_probs_tensor_backprop)
+            print(student_probs_tensor)
 
             #Calculate the loss:
             optimizer.zero_grad()
@@ -727,8 +727,8 @@ class ContrastiveLearner(object):
 
             y_true.extend(target_probs_tensor.tolist())
             y_pred.extend(student_probs_tensor.tolist())
-            print(y_true)
-            print(y_pred)
+            #print(y_true)
+            #print(y_pred)
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
