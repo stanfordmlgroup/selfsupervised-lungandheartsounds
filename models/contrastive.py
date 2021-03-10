@@ -697,39 +697,41 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
-            print("Shape of target_y is:")
-            print(target_y.shape)
+            # print("Shape of target_y is:")
+            # print(target_y.shape)
             target_probs = expit(target_y.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
             target_probs_tensor = torch.reshape(target_probs_tensor, (target_probs_tensor.shape[0], 1))
-            print("Shape of target_probs_tensor is:")
-            print(target_probs_tensor.shape)
+            # print("Shape of target_probs_tensor is:")
+            # print(target_probs_tensor.shape)
             print("Teacher Prediction is:")
             print(target_probs_tensor)
 
             student_y = model(X)
-            print("Shape of student_y is:")
-            print(student_y.shape)
+            # print("Shape of student_y is:")
+            # print(student_y.shape)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
             student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
-            print("Shape of student_probs_tensor is:")
-            print(student_probs_tensor.shape)
-
+            # print("Shape of student_probs_tensor is:")
+            # print(student_probs_tensor.shape)
             print("Student Prediction is:")
             print(student_probs_tensor)
 
             #Calculate the loss:
-            # train_loss = loss(output.view(-1), y.view(-1))
+            optimizer.zero_grad()
+            train_loss = loss(student_probs_tensor, target_probs_tensor)
+            print("Iteration loss is:")
+            print(train_loss)
 
 
             #print(y)
             #print(X.mean(),X.std(),y)
             # optimizer.zero_grad()
-            #
             # #print(X.shape)
-            # output = model(X).float()  # giving dimension error
+            # output = model(X).float()
             # train_loss = loss(output.view(-1), y.view(-1))
+
             # y_true.extend(y.tolist())
             # y_pred.extend(output.tolist())
             # train_loss = train_loss.cuda()
