@@ -698,22 +698,25 @@ class ContrastiveLearner(object):
             print("Shape of target_y is:")
             print(target_y.shape)
             target_probs = expit(target_y.cpu().detach().numpy())
-            target_probs = torch.reshape(target_probs, (target_probs.shape[0], 1))
+            target_probs_tensor = torch.from_numpy(target_probs)
+
+            #target_probs = torch.reshape(target_probs, (target_probs.shape[0], 1))
             print("Iteration number: " + str(i))
-            print("Shape of target_probs is:")
-            print(target_probs.shape)
+            print("Shape of target_probs_tensor is:")
+            print(target_probs_tensor.shape)
             print("Teacher Prediction is:")
-            print(target_probs)
+            print(target_probs_tensor)
 
             student_y = model(X)
             print("Shape of student_y is:")
             print(student_y.shape)
             student_probs = expit(student_y.cpu().detach().numpy())
-            print("Shape of student_probs is:")
-            print(student_probs.shape)
+            student_probs_tensor = torch.from_numpy(student_probs)
+            print("Shape of student_probs_tensor is:")
+            print(student_probs_tensor.shape)
 
             print("Student Prediction is:")
-            print(student_probs)
+            print(student_probs_tensor)
 
             #Calculate the loss:
             # train_loss = loss(output.view(-1), y.view(-1))
