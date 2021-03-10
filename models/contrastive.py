@@ -456,10 +456,10 @@ class ContrastiveLearner(object):
         #pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
         loss = BCEWithLogitsLoss().to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
-        # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
+        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
+        # loss = add_kd_loss(pos_weight, , .1)
 
-        # Supervised Alg:
+        # Supervised Learning Algorithm for the Student Model:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
             # if evaluator_type == 'fine-tune':
@@ -720,7 +720,7 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_probs_tensor, target_probs_tensor)
+            train_loss = loss(student_probs_tensor, target_probs_tensor).sum()
             print("Iteration loss is:")
             print(train_loss)
 
