@@ -720,12 +720,14 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_probs_tensor, target_probs_tensor).sum()
+            train_loss = loss(student_probs_tensor, target_probs_tensor)
             print("Iteration loss is:")
             print(train_loss)
 
             y_true.extend(target_probs_tensor.tolist())
             y_pred.extend(student_probs_tensor.tolist())
+            print(y_true)
+            print(y_pred)
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
