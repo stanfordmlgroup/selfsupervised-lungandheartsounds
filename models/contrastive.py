@@ -459,7 +459,7 @@ class ContrastiveLearner(object):
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
         # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
 
-        # Supervised Algo:
+        # Supervised Alg:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
             # if evaluator_type == 'fine-tune':
@@ -694,16 +694,16 @@ class ContrastiveLearner(object):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
 
-            y = teacher(X)
-            print("Shape of y is:")
-            print(y.shape)
-
-            probs = expit(y.cpu().detach().numpy())
+            target_y = teacher(X)
+            print("Shape of target_y is:")
+            print(target_y.shape)
+            target_probs = expit(target_y.cpu().detach().numpy())
+            target_probs = torch.reshape(target_probs, (target_probs.shape[0], 1))
             print("Iteration number: " + str(i))
-            print("Shape of probs is:")
-            print(probs.shape)
+            print("Shape of target_probs is:")
+            print(target_probs.shape)
             print("Teacher Prediction is:")
-            print(probs)
+            print(target_probs)
 
             student_y = model(X)
             print("Shape of student_y is:")
