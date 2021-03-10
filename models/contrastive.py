@@ -724,6 +724,11 @@ class ContrastiveLearner(object):
             print("Iteration loss is:")
             print(train_loss)
 
+            y_true.extend(target_probs_tensor.tolist())
+            y_pred.extend(student_probs_tensor.tolist())
+            train_loss = train_loss.cuda()
+            train_loss.backward()
+            optimizer.step()
 
             #print(y)
             #print(X.mean(),X.std(),y)
