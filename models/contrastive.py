@@ -430,8 +430,7 @@ class ContrastiveLearner(object):
                 "Total Cross Val Train auc: {:.7f}\tTotal Cross Val Test auc: {:.7f}\n".format(train_auc,
                                                                                                test_auc))
 
-    # Utilize KL Divergence Loss Function here
-    def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
+    def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type='cnn',
                 learning_rate=0.0):
         #print("Task is: " + str(task))
         #print("*********")
@@ -451,11 +450,11 @@ class ContrastiveLearner(object):
         indices = [(train_idx, test_idx)]
         self.batch_size = min(self.batch_size, len(train_idx))
         print('Batch Size: {}'.format(self.batch_size))
-        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
+        #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
-        loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        #pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
+        loss = BCEWithLogitsLoss().to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)  # Use different loss function here
         # loss = add_kd_loss(pos_weight, , .1) #Determine teacher_logits here
@@ -463,9 +462,9 @@ class ContrastiveLearner(object):
         # Supervised Algo:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
-            if evaluator_type == 'fine-tune':
-                model = self.get_model(1)
-            elif evaluator_type == 'cnn':
+            # if evaluator_type == 'fine-tune':
+            #     model = self.get_model(1)
+            if evaluator_type == 'cnn':
                 model = CNN(task, 1).to(self.device)
             train_df = df.iloc[train_idx]
             test_df = df.iloc[test_idx]
@@ -542,8 +541,6 @@ class ContrastiveLearner(object):
                     total_train_acc, total_test_acc
                 )
             )
-
-        pass
 
     def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, model_num=0):
         _y_pred = []
@@ -710,7 +707,7 @@ class ContrastiveLearner(object):
             y = teacher(X)  # y is a tensor here
             probs = expit(y.cpu().detach().numpy())
             print("Iteration number: " + str(i))
-            print("Prediction is:")
+            print("Teacher Prediction is:")
             print(probs)
             #print(y)
             #print(X.mean(),X.std(),y)
@@ -936,7 +933,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
-        # TODO: Make sure working as expected:
+        #Changed to evaluator_1
         state_dict = torch.load(os.path.join(log_dir, 'evaluator_1.pt'))
         encoder = learner.get_model(256)
         teacher = SSL(encoder)
