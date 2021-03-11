@@ -432,16 +432,10 @@ class ContrastiveLearner(object):
 
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type='cnn',
                 learning_rate=0.0):
-        #print("Task is: " + str(task))
-        #print("*********")
         df = self.dataset.labels
         data = self.dataset.data
         total_train_acc = 0
         total_test_acc = 0
-        # if len(df.index) > 10:
-        #     kf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=345)
-        #     indices = kf.split(df, df["y"])
-        # else:
         train_idx = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
         test_idx = []
         for i in range(0, len(df.index)):
@@ -450,6 +444,7 @@ class ContrastiveLearner(object):
         indices = [(train_idx, test_idx)]
         self.batch_size = min(self.batch_size, len(train_idx))
         print('Batch Size: {}'.format(self.batch_size))
+
         #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
@@ -462,10 +457,9 @@ class ContrastiveLearner(object):
         # Supervised Learning Algorithm for the Student Model:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
-            # if evaluator_type == 'fine-tune':
-            #     model = self.get_model(1)
             if evaluator_type == 'cnn':
                 model = CNN(task, 1).to(self.device)
+
             train_df = df.iloc[train_idx]
             test_df = df.iloc[test_idx]
             train_data = data[train_idx]
@@ -473,8 +467,6 @@ class ContrastiveLearner(object):
             train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                            transform=augment, data=train_data)
             test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-            # learning_rate = learning_rate * 10.0
-            # print("LR: {:.7f}".format(learning_rate))
             optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
             fold_train_acc = 0
@@ -684,7 +676,7 @@ class ContrastiveLearner(object):
         return ce, y_true, y_pred
 
     def _distill(self, model, teacher, loader, optimizer, device, loss):
-        # TODO: Test if any additional changes needed
+        # TODO: Testing
         model.train()
         teacher.to(self.device).eval()
         y_true = []
@@ -712,12 +704,10 @@ class ContrastiveLearner(object):
             print(target_probs_tensor)
 
             student_y = model(X)
-            print("Shape of student_y is:")
-            print(student_y.shape)
-            print("student_y is:")
-            print(student_y)
             # print("Shape of student_y is:")
             # print(student_y.shape)
+            # print("student_y is:")
+            # print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
             student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
@@ -744,21 +734,8 @@ class ContrastiveLearner(object):
             train_loss.backward()
             optimizer.step()
 
-            #print(y)
-            #print(X.mean(),X.std(),y)
-            # optimizer.zero_grad()
-            # #print(X.shape)
-            # output = model(X).float()
-            # train_loss = loss(output.view(-1), y.view(-1))
-
-            # y_true.extend(y.tolist())
-            # y_pred.extend(output.tolist())
-            # train_loss = train_loss.cuda()
-            # train_loss.backward()
-            # optimizer.step()
         print("Loop finished successfully")
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
-        # print(y_pred)
         return ce, y_true, y_pred
 
     def _optimize(self, model, X, y, optimizer, device, loss):
@@ -949,7 +926,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = 0.0001
+    learning_rate = 0.01
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
