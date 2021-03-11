@@ -695,16 +695,16 @@ class ContrastiveLearner(object):
 
             target_probs = expit(target_y_reshaped.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
-            #print("Teacher Prediction is:")
-            #print(target_probs_tensor)
+            print("Teacher Prediction is:")
+            print(target_probs_tensor)
 
             student_y = model(X)
             print("student_y is:")
             print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
-            #print("Student Prediction is:")
-            #print(student_probs_tensor)
+            print("Student Prediction is:")
+            print(student_probs_tensor)
 
             #Calculate the loss:
             optimizer.zero_grad()
