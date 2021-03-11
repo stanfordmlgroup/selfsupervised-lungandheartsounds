@@ -697,7 +697,7 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
-            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1))
+            #target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1))
             # print("Shape of target_y is:")
             # print(target_y.shape)
             # print("target_y is:")
@@ -734,7 +734,7 @@ class ContrastiveLearner(object):
             print(train_loss)
 
             #Put the actual predictions in here:
-            y_true.extend(target_y_reshaped.tolist())
+            y_true.extend(target_y.tolist())
             y_pred.extend(student_y.tolist())
             #print(y_true)
             #print(y_pred)
