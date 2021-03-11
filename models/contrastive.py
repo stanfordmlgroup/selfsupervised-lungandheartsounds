@@ -689,15 +689,15 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
-            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1))
+            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
             # print("Shape of target_y is:")
             # print(target_y.shape)
             print("target_y is:")
-            print(target_y)
+            print(target_y_reshaped)
 
-            target_probs = expit(target_y.cpu().detach().numpy())
+            target_probs = expit(target_y_reshaped.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
-            target_probs_tensor = torch.reshape(target_probs_tensor, (target_probs_tensor.shape[0], 1))
+            #target_probs_tensor = torch.reshape(target_probs_tensor, (target_probs_tensor.shape[0], 1))
             # print("Shape of target_probs_tensor is:")
             # print(target_probs_tensor.shape)
             print("Teacher Prediction is:")
@@ -710,7 +710,7 @@ class ContrastiveLearner(object):
             print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
-            student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
+            #student_probs_tensor = torch.reshape(student_probs_tensor, (student_probs_tensor.shape[0], 1))
             #student_probs_tensor_backprop = torch.autograd.Variable(student_probs_tensor, requires_grad=True)
             # print("Shape of student_probs_tensor_backprop is:")
             # print(student_probs_tensor_backprop.shape)
