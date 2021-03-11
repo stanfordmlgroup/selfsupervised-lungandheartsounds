@@ -697,8 +697,11 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
-            # print("Shape of target_y is:")
-            # print(target_y.shape)
+            print("Shape of target_y is:")
+            print(target_y.shape)
+            print("target_y is:")
+            print(target_y)
+
             target_probs = expit(target_y.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
             target_probs_tensor = torch.reshape(target_probs_tensor, (target_probs_tensor.shape[0], 1))
@@ -708,6 +711,10 @@ class ContrastiveLearner(object):
             print(target_probs_tensor)
 
             student_y = model(X)
+            print("Shape of student_y is:")
+            print(student_y.shape)
+            print("student_y is:")
+            print(student_y)
             # print("Shape of student_y is:")
             # print(student_y.shape)
             student_probs = expit(student_y.cpu().detach().numpy())
