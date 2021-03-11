@@ -457,13 +457,13 @@ class ContrastiveLearner(object):
         # Supervised Learning Algorithm for the Student Model:
         for fold, (train_idx, test_idx) in enumerate(indices):
             start_fold = time.time()
-            if evaluator_type == 'cnn':
-                model = CNN(task, 1).to(self.device)
+            model = CNN(task, 1).to(self.device)
 
             train_df = df.iloc[train_idx]
             test_df = df.iloc[test_idx]
             train_data = data[train_idx]
             test_data = data[test_idx]
+
             train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                            transform=augment, data=train_data)
             test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
@@ -695,22 +695,22 @@ class ContrastiveLearner(object):
 
             target_probs = expit(target_y_reshaped.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
-            print("Teacher Prediction is:")
-            print(target_probs_tensor)
+            #print("Teacher Prediction is:")
+            #print(target_probs_tensor)
 
             student_y = model(X)
-            print("student_y is:")
-            print(student_y)
+            #print("student_y is:")
+            #print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
-            print("Student Prediction is:")
-            print(student_probs_tensor)
+            #print("Student Prediction is:")
+            #print(student_probs_tensor)
 
             #Calculate the loss:
             optimizer.zero_grad()
             train_loss = loss(student_y, target_y_reshaped)
-            print("Iteration loss is:")
-            print(train_loss)
+            #print("Iteration loss is:")
+            #print(train_loss)
 
             #Put the actual predictions in y_pred:
             y_true.extend(target_y_reshaped.tolist())
