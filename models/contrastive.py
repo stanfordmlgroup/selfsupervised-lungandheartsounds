@@ -926,7 +926,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = 0.01
+    learning_rate = 0.0001
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
