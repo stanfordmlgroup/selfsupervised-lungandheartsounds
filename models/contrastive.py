@@ -699,8 +699,8 @@ class ContrastiveLearner(object):
             #print(target_probs_tensor)
 
             student_y = model(X)
-            #print("student_y is:")
-            #print(student_y)
+            print("student_y is:")
+            print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
             #print("Student Prediction is:")
@@ -915,7 +915,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = 0.0001
+    learning_rate = 0.00001
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
