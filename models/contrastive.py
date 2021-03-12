@@ -464,8 +464,8 @@ class ContrastiveLearner(object):
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
                                                                loss)
             test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
-            test_pred = expit(test_pred)
-            #train_pred, test_pred = expit(train_pred), expit(test_pred)
+            #test_pred = expit(test_pred)
+            train_pred, test_pred = expit(train_pred), expit(test_pred)
             train_accuracy = lo.get_accuracy(train_true, train_pred)
             test_accuracy = lo.get_accuracy(test_true, test_pred)
             try:
@@ -662,8 +662,8 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            #train_loss = loss(student_y, target_y_reshaped)
-            train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
+            train_loss = loss(student_y, target_probs_tensor)
+            #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
 
@@ -680,8 +680,8 @@ class ContrastiveLearner(object):
             optimizer.step()
 
         #print("Loop finished successfully")
-        #ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
-        ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
+        ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
+        #ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
         return ce, y_true, y_pred
 
     def _optimize(self, model, X, y, optimizer, device, loss):
