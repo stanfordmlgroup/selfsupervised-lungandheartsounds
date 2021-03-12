@@ -478,7 +478,7 @@ class ContrastiveLearner(object):
 
             elapsed = time.time() - start
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-            print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
+            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, test_loss))
             print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
                                                                                  roc_score))
             with open(log_file, "a+") as log:
@@ -644,21 +644,21 @@ class ContrastiveLearner(object):
 
             target_y = teacher(X)
             target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
-            print("target_y is:")
-            print(target_y_reshaped)
+            #print("target_y is:")
+            #print(target_y_reshaped)
 
             target_probs = expit(target_y_reshaped.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs)
-            print("Teacher Prediction is:")
-            print(target_probs_tensor)
+            #print("Teacher Prediction is:")
+            #print(target_probs_tensor)
 
             student_y = model(X)
-            print("student_y is:")
-            print(student_y)
+            #print("student_y is:")
+            #print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
-            print("Student Prediction is:")
-            print(student_probs_tensor)
+            #print("Student Prediction is:")
+            #print(student_probs_tensor)
 
             #Calculate the loss:
             optimizer.zero_grad()
@@ -678,7 +678,7 @@ class ContrastiveLearner(object):
             train_loss.backward()
             optimizer.step()
 
-        print("Loop finished successfully")
+        #print("Loop finished successfully")
         #ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
         ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
         return ce, y_true, y_pred
