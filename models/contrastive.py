@@ -1,4 +1,4 @@
-from models import ResNetSimCLR, SSL, Logistic, CNN
+from models import ResNetSimCLR, SSL, Logistic, CNN, CNNlight
 import os
 import time
 import numpy as np
@@ -442,7 +442,7 @@ class ContrastiveLearner(object):
                 "Total Cross Val Train auc: {:.7f}\tTotal Cross Val Test auc: {:.7f}\n".format(train_auc,
                                                                                                test_auc))
 
-    def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type='cnn',
+    def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
         df = self.dataset.labels
         data = self.dataset.data
@@ -453,8 +453,10 @@ class ContrastiveLearner(object):
         test_df = test_dataset.labels
         test_data = test_dataset.data
         print('Batch Size: {}'.format(self.batch_size))
-
-        model = CNN(task, 1).to(self.device)
+        if evaluator_type = 'cnn':
+            model = CNN(task, 1).to(self.device)
+        elif evaluator_type = 'cnn_light':
+            model = CNNlight(task, 1).to(self.device)
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
         test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
@@ -652,39 +654,39 @@ class ContrastiveLearner(object):
             y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
 
-            #target_y = teacher(X)
-            #target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
+            target_y = teacher(X)
+            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
             #print("target_y is:")
             #print(target_y_reshaped)
 
-            #target_probs = expit(target_y_reshaped.cpu().detach().numpy())
-            #target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
+            target_probs = expit(target_y_reshaped.cpu().detach().numpy())
+            target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
             #print("Teacher Prediction is:")
             #print(target_probs_tensor)
 
             student_y = model(X)
             #print("student_y is:")
             #print(student_y)
-            student_probs = expit(student_y.cpu().detach().numpy())
-            student_probs_tensor = torch.from_numpy(student_probs)
+            #student_probs = expit(student_y.cpu().detach().numpy())
+            #student_probs_tensor = torch.from_numpy(student_probs)
             #print("Student Prediction is:")
             #print(student_probs_tensor)
 
             if i == 24:
-                #print("target_y is:")
-                #print(target_y_reshaped)
+                print("target_y is:")
+                print(target_y_reshaped)
                 #print("Teacher Prediction is:")
                 #print(target_probs_tensor)
                 print("student_y is:")
                 print(student_y)
-                print("Student Prediction is:")
-                print(student_probs_tensor)
-                print("Actual y values are:")
-                print(y)
+                #print("Student Prediction is:")
+                #print(student_probs_tensor)
+                #print("Actual y values are:")
+                #print(y)
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, y_reshaped)
+            train_loss = loss(student_y, target_probs_tensor)
             #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
