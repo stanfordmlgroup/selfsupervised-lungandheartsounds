@@ -479,7 +479,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_general_testing" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_distill_cnn-light" + ".pt"))
                 best_test_loss = test_loss
 
 
@@ -702,11 +702,6 @@ class ContrastiveLearner(object):
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
-
-            num_teacher_params = count_parameters(teacher)
-            num_student_params = count_parameters(model)
-            print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params,
-                                                                                                  num_teacher_params))
 
         #print("Loop finished successfully")
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
