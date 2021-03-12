@@ -668,7 +668,8 @@ class ContrastiveLearner(object):
             #print(train_loss)
 
             #Put the actual predictions in y_pred:
-            y_true.extend(target_y_reshaped.tolist())
+            #y_true.extend(target_y_reshaped.tolist())
+            y_true.extend(y.tolist())
             y_pred.extend(student_y.tolist())
             #print(y_true)
             #print(y_pred)
