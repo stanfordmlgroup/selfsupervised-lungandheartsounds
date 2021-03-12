@@ -31,10 +31,10 @@ import random
 
 
 def add_kd_loss(student_logits, teacher_logits, temperature):
-  print(student_logits.shape)
-  print(teacher_logits.shape)
+  #print(student_logits.shape)
+  #print(teacher_logits.shape)
   teacher_probs = F.softmax(teacher_logits / temperature)
-  print(teacher_probs.shape)
+  #print(teacher_probs.shape)
   kd_loss = torch.mean(temperature**2 * F.binary_cross_entropy_with_logits(student_logits / temperature, teacher_probs))
   return kd_loss
 
@@ -462,7 +462,7 @@ class ContrastiveLearner(object):
         for epoch in range(1, self.epochs + 1):
             start = time.time()
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
-                                                               loss = None) #Test KD Loss
+                                                               loss)
             test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
             test_pred = expit(test_pred)
             #train_pred, test_pred = expit(train_pred), expit(test_pred)
