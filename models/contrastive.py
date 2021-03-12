@@ -660,6 +660,16 @@ class ContrastiveLearner(object):
             #print("Student Prediction is:")
             #print(student_probs_tensor)
 
+            if i == 24:
+                print("target_y is:")
+                print(target_y_reshaped)
+                print("Teacher Prediction is:")
+                print(target_probs_tensor)
+                print("student_y is:")
+                print(student_y)
+                print("Student Prediction is:")
+                print(student_probs_tensor)
+
             #Calculate the loss:
             optimizer.zero_grad()
             train_loss = loss(student_y, target_probs_tensor)
