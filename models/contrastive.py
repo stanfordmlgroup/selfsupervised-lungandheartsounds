@@ -38,6 +38,10 @@ def add_kd_loss(student_logits, teacher_logits, temperature):
   kd_loss = torch.mean(temperature**2 * F.binary_cross_entropy_with_logits(student_logits / temperature, teacher_probs))
   return kd_loss
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 class ContrastiveLearner(object):
 
     def __init__(self, dataset, epochs, batch_size, log_dir, model=None):
@@ -476,11 +480,17 @@ class ContrastiveLearner(object):
                 lo.save_weights(model, os.path.join(log_dir, "student_only_baseline" + ".pt"))
                 best_test_loss = test_loss
 
+
+            num_teacher_params = count_parameters(teacher)
+            num_student_params = count_parameters(model)
+
             elapsed = time.time() - start
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
             print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, test_loss))
             print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
                                                                                  roc_score))
+            print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params, num_teacher_params))
+
             with open(log_file, "a+") as log:
                 log.write(
                     "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
