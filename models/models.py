@@ -169,7 +169,7 @@ class CNNlight(torch.nn.Module):
         if self.task == "disease" or self.task == "symptom":
             hidden_dim = 17408
         elif self.task == "heart":
-            hidden_dim = 4096
+            hidden_dim = 67200
         elif self.task == "heartchallenge":
             hidden_dim = 1024
         self.linear_layers = Sequential(
