@@ -453,9 +453,9 @@ class ContrastiveLearner(object):
         test_df = test_dataset.labels
         test_data = test_dataset.data
         print('Batch Size: {}'.format(self.batch_size))
-        if evaluator_type = 'cnn':
+        if evaluator_type == 'cnn':
             model = CNN(task, 1).to(self.device)
-        elif evaluator_type = 'cnn_light':
+        elif evaluator_type == 'cnn_light':
             model = CNNlight(task, 1).to(self.device)
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
