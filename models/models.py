@@ -174,8 +174,10 @@ class CNNlight(torch.nn.Module):
             hidden_dim = 1024
         self.linear_layers = Sequential(
             # 11904 for disease/symptom, 119040 for heart, 35712 for heart challenge
-            Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
-            Linear(512, classes)
+            # Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
+            # Linear(512, classes)
+            Linear(hidden_dim, 256), ReLU(inplace=True), Dropout(0.5), Linear(256, 128), ReLU(inplace=True),
+            Linear(128, classes)
         )
 
     def forward(self, x):
