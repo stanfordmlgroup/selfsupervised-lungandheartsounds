@@ -154,15 +154,17 @@ class CNNlight(torch.nn.Module):
         self.task = task
         super(CNNlight, self).__init__()
         self.cnn_layers = Sequential(
-            Conv2d(1, 64, kernel_size=[7, 11], stride=2, padding=1),
+            Conv2d(1, 64, kernel_size=[7, 11], stride=2, padding=1), #Test out different values (make square)
             LeakyReLU(inplace=True),
             MaxPool2d(2),
             Conv2d(64, 128, kernel_size=3, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(128, 128, kernel_size=1, padding=1),
+            Conv2d(128, 128, kernel_size=1, padding=1), #Remove padding of 1
             LeakyReLU(inplace=True),
             MaxPool2d(2),
+
+
 
         )
         hidden_dim = 0

@@ -576,6 +576,7 @@ class HeartDataset(Dataset):
     def __getitem__(self, idx):
         row = self.labels.iloc[idx]
         X = self.data[idx]
+        #Resize function here possibly (check X dim)
 
         # Get label
         y = self.get_class_val(row)

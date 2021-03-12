@@ -455,6 +455,8 @@ class ContrastiveLearner(object):
         print('Batch Size: {}'.format(self.batch_size))
         if evaluator_type == 'cnn':
             model = CNN(task, 1).to(self.device)
+            #Include option for loading a model:
+            #Put model in eval mode and use model.load_state_dict()
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
@@ -650,7 +652,8 @@ class ContrastiveLearner(object):
 
         for i, data in enumerate(loader):
             X, y = data
-            print(X.shape)
+            #print(X.shape)
+            #print(X)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
