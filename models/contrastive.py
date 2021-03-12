@@ -482,7 +482,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_distill_run_2" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_distill_run_with_teacher_eval" + ".pt"))
                 best_test_loss = test_loss
 
             elapsed = time.time() - start
