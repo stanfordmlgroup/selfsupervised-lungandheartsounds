@@ -26,7 +26,7 @@ sys.path.append("../utils")
 import loss as lo
 import labels as la
 import file as fi
-from loss import NTXentLoss, WeightedFocalLoss  # , add_kd_loss
+from loss import NTXentLoss, WeightedFocalLoss
 import random
 
 
@@ -451,8 +451,7 @@ class ContrastiveLearner(object):
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
         test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-        #loss = BCEWithLogitsLoss().to(self.device)
-        loss = add_kd_loss().to(self.device)
+        loss = BCEWithLogitsLoss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
         best_test_loss = np.inf
@@ -460,7 +459,7 @@ class ContrastiveLearner(object):
         for epoch in range(1, self.epochs + 1):
             start = time.time()
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
-                                                               loss)
+                                                               loss = None) #Test KD Loss
             test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
             test_pred = expit(test_pred)
             #train_pred, test_pred = expit(train_pred), expit(test_pred)
@@ -661,7 +660,7 @@ class ContrastiveLearner(object):
             #Calculate the loss:
             optimizer.zero_grad()
             #train_loss = loss(student_y, target_y_reshaped)
-            train_loss = loss(student_y, target_y_reshaped, .1)
+            train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
 
@@ -677,7 +676,8 @@ class ContrastiveLearner(object):
             optimizer.step()
 
         print("Loop finished successfully")
-        ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
+        #ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
+        ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
         return ce, y_true, y_pred
 
     def _optimize(self, model, X, y, optimizer, device, loss):
