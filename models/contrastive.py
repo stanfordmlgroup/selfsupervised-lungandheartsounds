@@ -6,6 +6,7 @@ import datetime
 import argparse
 import torch
 from torch.nn import BCEWithLogitsLoss, Softmax
+from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
 from sklearn.dummy import DummyClassifier
