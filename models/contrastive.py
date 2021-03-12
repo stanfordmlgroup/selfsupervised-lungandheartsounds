@@ -473,7 +473,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_distill_run_with_teacher_eval" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_only_baseline" + ".pt"))
                 best_test_loss = test_loss
 
             elapsed = time.time() - start
@@ -642,13 +642,13 @@ class ContrastiveLearner(object):
 
             print("Iteration number: " + str(i))
 
-            target_y = teacher(X)
-            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
+            #target_y = teacher(X)
+            #target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
             #print("target_y is:")
             #print(target_y_reshaped)
 
-            target_probs = expit(target_y_reshaped.cpu().detach().numpy())
-            target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
+            #target_probs = expit(target_y_reshaped.cpu().detach().numpy())
+            #target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
             #print("Teacher Prediction is:")
             #print(target_probs_tensor)
 
@@ -661,18 +661,20 @@ class ContrastiveLearner(object):
             #print(student_probs_tensor)
 
             if i == 24:
-                print("target_y is:")
-                print(target_y_reshaped)
-                print("Teacher Prediction is:")
-                print(target_probs_tensor)
+                #print("target_y is:")
+                #print(target_y_reshaped)
+                #print("Teacher Prediction is:")
+                #print(target_probs_tensor)
                 print("student_y is:")
                 print(student_y)
                 print("Student Prediction is:")
                 print(student_probs_tensor)
+                print("Actual y values are:")
+                print(y)
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, target_probs_tensor)
+            train_loss = loss(student_y, y)
             #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
