@@ -434,60 +434,30 @@ class ContrastiveLearner(object):
                 learning_rate=0.0):
         df = self.dataset.labels
         data = self.dataset.data
-
         test_dataset = get_dataset(task, label_file, base_dir, split="val")
+
         train_df = df
         train_data = data
         test_df = test_dataset.labels
         test_data = test_dataset.data
-
-        total_train_acc = 0
-        total_test_acc = 0
-        #train_idx = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
-        #test_idx = []
-        # for i in range(0, len(df.index)):
-        #     if i not in train_idx:
-        #         test_idx.append(i)
-        # indices = [(train_idx, test_idx)]
-        #self.batch_size = min(self.batch_size, len(train_idx))
         print('Batch Size: {}'.format(self.batch_size))
 
-        #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
-        # weights = 1.0 / weights
-        # weights = weights / weights.sum()
-        #pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
-        loss = BCEWithLogitsLoss().to(self.device)
-        # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
-        # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
-        # loss = add_kd_loss(pos_weight, , .1)
-
-        # Supervised Learning Algorithm for the Student Model:
-        #for fold, (train_idx, test_idx) in enumerate(indices):
-            #start_fold = time.time()
-
         model = CNN(task, 1).to(self.device)
-
-        # train_df = df.iloc[train_idx]
-        # test_df = df.iloc[test_idx]
-        # train_data = data[train_idx]
-        # test_data = data[test_idx]
-
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
         test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-
+        loss = BCEWithLogitsLoss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-        fold_train_acc = 0
-        fold_test_acc = 0
         best_test_loss = np.inf
-        counter = 0
+        # Supervised Learning Algorithm for the Student Model:
         for epoch in range(1, self.epochs + 1):
             start = time.time()
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
                                                                loss)
             test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
-            train_pred, test_pred = expit(train_pred), expit(test_pred)
+            test_pred = expit(test_pred)
+            #train_pred, test_pred = expit(train_pred), expit(test_pred)
             train_accuracy = lo.get_accuracy(train_true, train_pred)
             test_accuracy = lo.get_accuracy(test_true, test_pred)
             try:
@@ -495,7 +465,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_" + str(fold) + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_distill" + ".pt"))
                 best_test_loss = test_loss
 
             elapsed = time.time() - start
@@ -509,39 +479,6 @@ class ContrastiveLearner(object):
                         epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
                     )
                 )
-
-            fold_train_acc += train_accuracy
-            fold_test_acc += test_accuracy
-
-        #     elapsed_fold = time.time() - start_fold
-        #
-        #     fold_train_acc /= float(self.epochs)
-        #     fold_test_acc /= float(self.epochs)
-        #     total_train_acc += fold_train_acc
-        #     total_test_acc += fold_test_acc
-        #     print(
-        #         "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-        #             fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
-        #         )
-        #     )
-        #     with open(log_file, "a+") as log:
-        #         log.write(
-        #             "Fold: {:03d}, Time: {:.3f} s\tFold Train Acc: {:.7f}\tFold Val Acc: {:.7f}\tROC: {:.7f}\n".format(
-        #                 fold, elapsed_fold, fold_train_acc, fold_test_acc, roc_score
-        #             )
-        #         )
-        #
-        # total_train_acc /= float(n_splits)
-        # total_test_acc /= float(n_splits)
-        # print(
-        #     "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc,
-        #                                                                                    total_test_acc))
-        # with open(log_file, "a+") as log:
-        #     log.write(
-        #         "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(
-        #             total_train_acc, total_test_acc
-        #         )
-        #     )
 
     def test(self, task, label_file, log_file, encoder, evaluator_dir, evaluator_type=None, model_num=0):
         _y_pred = []
