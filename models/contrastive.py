@@ -648,7 +648,7 @@ class ContrastiveLearner(object):
             #print(target_y_reshaped)
 
             target_probs = expit(target_y_reshaped.cpu().detach().numpy())
-            target_probs_tensor = torch.from_numpy(target_probs, device = self.device)
+            target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
             #print("Teacher Prediction is:")
             #print(target_probs_tensor)
 
