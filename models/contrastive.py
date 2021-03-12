@@ -455,7 +455,7 @@ class ContrastiveLearner(object):
         print('Batch Size: {}'.format(self.batch_size))
         if evaluator_type == 'cnn':
             model = CNN(task, 1).to(self.device)
-        elif evaluator_type == 'cnn_light':
+        elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
@@ -953,7 +953,7 @@ if __name__ == "__main__":
                         choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
-    parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn"})
+    parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn", "cnn-light"})
     parser.add_argument("--augment", type=str, default=None,
                         choices={"split", "raw", "spec", "spec+split", 'raw+split', 'time', 'freq', 'time+split'})
     parser.add_argument("--folds", type=int, default=5)
