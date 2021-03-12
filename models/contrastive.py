@@ -477,7 +477,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_only_baseline" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_general_testing" + ".pt"))
                 best_test_loss = test_loss
 
 
