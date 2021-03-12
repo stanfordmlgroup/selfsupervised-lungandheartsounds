@@ -32,7 +32,7 @@ import random
 
 def add_kd_loss(student_logits, teacher_logits, temperature):
   teacher_probs = Softmax(teacher_logits / temperature)
-  kd_loss = torch.mean(temperature**2 * F.cross_entropy(student_logits / temperature, teacher_probs))
+  kd_loss = torch.mean(temperature**2 * F.binary_cross_entropy_with_logits(student_logits / temperature, teacher_probs))
   return kd_loss
 
 class ContrastiveLearner(object):
