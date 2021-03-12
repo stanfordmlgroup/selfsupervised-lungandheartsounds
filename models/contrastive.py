@@ -5,7 +5,7 @@ import numpy as np
 import datetime
 import argparse
 import torch
-from torch.nn import BCEWithLogitsLoss
+from torch.nn import BCEWithLogitsLoss, Softmax
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
 from sklearn.dummy import DummyClassifier
@@ -29,6 +29,11 @@ import file as fi
 from loss import NTXentLoss, WeightedFocalLoss  # , add_kd_loss
 import random
 
+
+def add_kd_loss(student_logits, teacher_logits, temperature):
+  teacher_probs = Softmax(teacher_logits / temperature)
+  kd_loss = torch.mean(temperature**2 * F.cross_entropy(student_logits / temperature, teacher_probs))
+  return kd_loss
 
 class ContrastiveLearner(object):
 
@@ -446,7 +451,8 @@ class ContrastiveLearner(object):
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
         test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
-        loss = BCEWithLogitsLoss().to(self.device)
+        #loss = BCEWithLogitsLoss().to(self.device)
+        loss = add_kd_loss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
         best_test_loss = np.inf
@@ -654,7 +660,8 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, target_y_reshaped)
+            #train_loss = loss(student_y, target_y_reshaped)
+            train_loss = loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
 
