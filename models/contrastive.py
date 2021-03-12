@@ -464,7 +464,16 @@ class ContrastiveLearner(object):
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
                                                                loss)
             test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
-            #test_pred = expit(test_pred)
+
+            #Do runs for teacher (using _test function)
+            teacher_train_loss, teacher_train_true, teacher_train_pred = self._test(teacher, train_loader, self.device, loss)
+            teacher_test_loss, teacher_test_true, teacher_test_pred = self._test(teacher, test_loader, self.device, loss)
+            teacher_train_pred, teacher_test_pred = expit(teacher_train_pred), expit(teacher_test_pred)
+            teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
+            teacher_test_acc = lo.get_accuracy(teacher_test_true, teacher_test_pred)
+            teacher_roc_score = roc_auc_score(teacher_test_true, teacher_test_pred)
+            #End teacher calculations
+
             train_pred, test_pred = expit(train_pred), expit(test_pred)
             train_accuracy = lo.get_accuracy(train_true, train_pred)
             test_accuracy = lo.get_accuracy(test_true, test_pred)
@@ -473,7 +482,7 @@ class ContrastiveLearner(object):
             except:
                 roc_score = 0
             if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_distill" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_distill_run_2" + ".pt"))
                 best_test_loss = test_loss
 
             elapsed = time.time() - start
@@ -481,6 +490,13 @@ class ContrastiveLearner(object):
             print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, test_loss))
             print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
                                                                                  roc_score))
+            #Prints for teacher:
+            print("Teacher results: (Should be same b/t iterations)")
+            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_test_loss))
+            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(teacher_train_acc, teacher_test_acc,
+                                                                                 teacher_roc_score))
+            #End teacher prints
+
             with open(log_file, "a+") as log:
                 log.write(
                     "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
