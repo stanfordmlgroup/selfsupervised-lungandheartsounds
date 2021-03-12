@@ -650,6 +650,7 @@ class ContrastiveLearner(object):
 
         for i, data in enumerate(loader):
             X, y = data
+            print(X.shape)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
