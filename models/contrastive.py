@@ -744,7 +744,10 @@ class ContrastiveLearner(object):
             with open(log_file, 'a+') as f:
                 f.write("ID,pred_proba,label\n")
         for i, data in enumerate(loader):
-            id, X, y = data
+            try:
+                id, X, y = data
+            except:
+                X,y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
             output = model(X)
 
