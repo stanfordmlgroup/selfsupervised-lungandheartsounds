@@ -639,7 +639,7 @@ class ContrastiveLearner(object):
         for i, data in enumerate(loader):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-
+            y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
 
             #target_y = teacher(X)
@@ -674,7 +674,7 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, y)
+            train_loss = loss(student_y, y_reshaped)
             #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
