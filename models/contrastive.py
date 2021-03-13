@@ -683,8 +683,8 @@ class ContrastiveLearner(object):
             student_y = model(X)
             #print("student_y is:")
             #print(student_y)
-            #student_probs = expit(student_y.cpu().detach().numpy())
-            #student_probs_tensor = torch.from_numpy(student_probs)
+            student_probs = expit(student_y.cpu().detach().numpy())
+            student_probs_tensor = torch.from_numpy(student_probs)
             #print("Student Prediction is:")
             #print(student_probs_tensor)
 
