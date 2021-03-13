@@ -460,7 +460,7 @@ class ContrastiveLearner(object):
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
 
-        train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
+        train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "pretrain", df=train_df,
                                        transform=augment, data=train_data)
         val_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=val_df, data=val_data)
         loss = BCEWithLogitsLoss().to(self.device)
@@ -483,7 +483,7 @@ class ContrastiveLearner(object):
             val_auc_score = roc_auc_score(val_true, val_pred)
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_correct_distill_large-cnn" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_general_testing" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
@@ -658,12 +658,16 @@ class ContrastiveLearner(object):
         y_true = []
         y_pred = []
 
+
+        print("Number of batches is:")
+        print(len(loader))
+        print("*******")
         for i, data in enumerate(loader):
             X, y = data
-            #print(X.shape)
+            print(X.shape)
             #print(X)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            y_reshaped = torch.reshape(y, (y.shape[0], 1))
+            #y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
@@ -684,7 +688,7 @@ class ContrastiveLearner(object):
             #print("Student Prediction is:")
             #print(student_probs_tensor)
 
-            if i == 24:
+            if i % 20 == 0:
                 print("target_y is:")
                 print(target_y_reshaped)
                 #print("Teacher Prediction is:")
@@ -924,11 +928,10 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
     #Will have to change this if I want to do runs on pretrain dataset:
-    if not full_data:
-        dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
-    else:
-        dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
-
+    # if not full_data:
+    #     dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
+    # else:
+    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
         #Changed to evaluator_1
