@@ -662,7 +662,10 @@ class ContrastiveLearner(object):
         print("Number of batches is:")
         print(len(loader))
         print("*******")
+
+        #Get this loop figured out for pretrain
         for i, data in enumerate(loader):
+            print(data)
             X, y = data
             print(X.shape)
             #print(X)
