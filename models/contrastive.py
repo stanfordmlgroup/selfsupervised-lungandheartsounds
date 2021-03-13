@@ -664,6 +664,8 @@ class ContrastiveLearner(object):
         print("*******")
 
         #Get this loop figured out for pretrain
+        print("Loader values are:")
+        print(loader)
         for i, data in enumerate(loader):
             print(data)
             X, xj, y = data
