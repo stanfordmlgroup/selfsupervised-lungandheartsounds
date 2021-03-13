@@ -666,8 +666,11 @@ class ContrastiveLearner(object):
         #Get this loop figured out for pretrain
         for i, data in enumerate(loader):
             print(data)
-            X, y = data
+            X, xj, y = data
             print(X.shape)
+            print(xj.shape)
+            print(y.shape)
+            print(y)
             #print(X)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             #y_reshaped = torch.reshape(y, (y.shape[0], 1))
