@@ -483,27 +483,8 @@ class ContrastiveLearner(object):
             val_auc_score = roc_auc_score(val_true, val_pred)
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_correct_distill_large-cnn_with_teacher_eval" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_correct_distill_large-cnn" + ".pt"))
                 best_dev_auc = val_auc_score
-
-            # Do runs for teacher (using _test function)
-            teacher_train_loss, teacher_train_true, teacher_train_pred = self._test(teacher, train_loader, self.device,
-                                                                                    loss)
-            teacher_val_loss, teacher_val_true, teacher_val_pred = self._test(teacher, val_loader, self.device,
-                                                                                 loss)
-            teacher_train_pred, teacher_val_pred = expit(teacher_train_pred), expit(teacher_val_pred)
-            teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
-            teacher_val_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
-            teacher_train_auc_score = roc_auc_score(teacher_train_true, teacher_train_pred)
-            teacher_val_auc_score = roc_auc_score(teacher_val_true, teacher_val_pred)
-            # End teacher calculations
-
-            # Prints for teacher:
-            print("Teacher results: (Should be same b/t iterations)")
-            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_val_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(teacher_train_acc, teacher_val_acc,
-                                                                                 teacher_train_auc_score, teacher_val_auc_score))
-            # End teacher prints
 
             num_teacher_params = count_parameters(teacher)
             num_student_params = count_parameters(model)
