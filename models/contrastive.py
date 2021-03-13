@@ -691,14 +691,14 @@ class ContrastiveLearner(object):
             if i % 20 == 0:
                 print("target_y is:")
                 print(target_y_reshaped)
-                #print("Teacher Prediction is:")
-                #print(target_probs_tensor)
+                print("Teacher Prediction is:")
+                print(target_probs_tensor)
                 print("student_y is:")
                 print(student_y)
-                #print("Student Prediction is:")
-                #print(student_probs_tensor)
-                #print("Actual y values are:")
-                #print(y)
+                print("Student Prediction is:")
+                print(student_probs_tensor)
+                print("Actual y values are:")
+                print(y)
 
             #Calculate the loss:
             optimizer.zero_grad()
