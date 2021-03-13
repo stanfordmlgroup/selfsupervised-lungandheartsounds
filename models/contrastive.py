@@ -971,7 +971,7 @@ if __name__ == "__main__":
                         choices={"disease", "demo", "wheeze", "crackle", "heartchallenge", "heart"})
     parser.add_argument("--log_dir", type=str, default=None)
     parser.add_argument("--data", type=str, default="../data")
-    parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn", "cnn-light"})
+    parser.add_argument("--evaluator", type=str, default=None, choices={"knn", "linear", "fine-tune", "cnn", "cnn-light", "distill-cnn"})
     parser.add_argument("--augment", type=str, default=None,
                         choices={"split", "raw", "spec", "spec+split", 'raw+split', 'time', 'freq', 'time+split'})
     parser.add_argument("--folds", type=int, default=5)
