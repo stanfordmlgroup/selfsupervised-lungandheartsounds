@@ -1,4 +1,4 @@
-from models import ResNetSimCLR, SSL, Logistic, CNN, CNNlight
+from models import ResNetSimCLR, SSL, Logistic, CNN, CNNlight, DistillCNN
 import os
 import time
 import numpy as np
@@ -459,6 +459,8 @@ class ContrastiveLearner(object):
             #Put model in eval mode and use model.load_state_dict()
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
+        elif evaluator_type == 'distill-cnn':
+            model = DistillCNN(task, 1).to(self.device)
 
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                         data=train_data) #Put in train mode to get X and y from pretrain data
@@ -483,7 +485,7 @@ class ContrastiveLearner(object):
             val_auc_score = roc_auc_score(val_true, val_pred)
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_cnn-light" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_cnn_testing" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
