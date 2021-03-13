@@ -668,11 +668,11 @@ class ContrastiveLearner(object):
         print(loader)
         for i, data in enumerate(loader):
             print(data)
-            X, xj, y = data
-            print(X.shape)
-            print(xj.shape)
-            print(y.shape)
-            print(y)
+            X, y = data
+            #print(X.shape)
+            #print(xj.shape)
+            #print(y.shape)
+            #print(y)
             #print(X)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             #y_reshaped = torch.reshape(y, (y.shape[0], 1))
@@ -707,6 +707,10 @@ class ContrastiveLearner(object):
                 print(student_probs_tensor)
                 print("Actual y values are:")
                 print(y)
+                print("y_true is")
+                print(y_true)
+                print("y_pred is")
+                print(y_pred)
 
             #Calculate the loss:
             optimizer.zero_grad()
