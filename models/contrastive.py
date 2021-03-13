@@ -667,8 +667,8 @@ class ContrastiveLearner(object):
         print("*******")
 
         #Get this loop figured out for pretrain
-        print("Loader values are:")
-        print(loader)
+        #print("Loader values are:")
+        #print(loader)
         for i, data in enumerate(loader):
             print(data)
             X, y = data
@@ -708,12 +708,12 @@ class ContrastiveLearner(object):
                 print(student_y)
                 print("Student Prediction is:")
                 print(student_probs_tensor)
-                print("Actual y values are:")
-                print(y)
-                print("y_true is")
-                print(y_true)
-                print("y_pred is")
-                print(y_pred)
+                #print("Actual y values are:")
+                #print(y)
+                #print("y_true is")
+                #print(y_true)
+                #print("y_pred is")
+                #print(y_pred)
 
             #Calculate the loss:
             optimizer.zero_grad()
