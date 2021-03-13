@@ -493,15 +493,15 @@ class ContrastiveLearner(object):
                                                                                  loss)
             teacher_train_pred, teacher_val_pred = expit(teacher_train_pred), expit(teacher_val_pred)
             teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
-            teacher_test_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
+            teacher_val_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
             teacher_train_auc_score = roc_auc_score(teacher_train_true, teacher_train_pred)
             teacher_val_auc_score = roc_auc_score(teacher_val_true, teacher_val_pred)
             # End teacher calculations
 
             # Prints for teacher:
             print("Teacher results: (Should be same b/t iterations)")
-            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_test_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(teacher_train_acc, teacher_test_acc,
+            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_val_loss))
+            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(teacher_train_acc, teacher_val_acc,
                                                                                  teacher_train_auc_score, teacher_val_auc_score))
             # End teacher prints
 
@@ -520,6 +520,7 @@ class ContrastiveLearner(object):
             writer.add_scalar('loss/val', val_loss, epoch)
             writer.add_scalar('AUC/train', train_auc_score, epoch)
             writer.add_scalar('AUC/val', val_auc_score, epoch)
+            writer.add_scalar('student_params', num_student_params, epoch)
 
             with open(log_file, "a+") as log:
                 log.write(
