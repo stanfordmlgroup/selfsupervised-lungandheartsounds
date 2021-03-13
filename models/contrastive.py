@@ -444,6 +444,9 @@ class ContrastiveLearner(object):
 
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
+        print("self.dataset is:")
+        print(self.dataset)
+
         df = self.dataset.labels
         print("df is:")
         print(df)
