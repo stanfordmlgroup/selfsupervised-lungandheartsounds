@@ -6,7 +6,6 @@ import datetime
 import argparse
 import torch
 from torch.nn import BCEWithLogitsLoss, Softmax
-from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
 from sklearn.dummy import DummyClassifier
@@ -447,12 +446,12 @@ class ContrastiveLearner(object):
                 learning_rate=0.0):
         df = self.dataset.labels
         data = self.dataset.data
-        test_dataset = get_dataset(task, label_file, base_dir, split="val")
+        val_dataset = get_dataset(task, label_file, base_dir, split="val")
 
         train_df = df
         train_data = data
-        test_df = test_dataset.labels
-        test_data = test_dataset.data
+        val_df = val_dataset.labels
+        val_data = val_dataset.data
         print('Batch Size: {}'.format(self.batch_size))
         if evaluator_type == 'cnn':
             model = CNN(task, 1).to(self.device)
@@ -460,46 +459,53 @@ class ContrastiveLearner(object):
             #Put model in eval mode and use model.load_state_dict()
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
+
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
-        test_loader = get_data_loader(task, label_file, base_dir, 1, "test", df=test_df, data=test_data)
+        val_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=val_df, data=val_data)
         loss = BCEWithLogitsLoss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
 
-        best_test_loss = np.inf
+        best_dev_auc = 0
         # Supervised Learning Algorithm for the Student Model:
         for epoch in range(1, self.epochs + 1):
             start = time.time()
             train_loss, train_true, train_pred = self._distill(model, teacher, train_loader, optimizer, self.device,
                                                                loss)
-            test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+            val_loss, val_true, val_pred = self._test(model, val_loader, self.device, loss)
 
-            train_pred, test_pred = expit(train_pred), expit(test_pred)
+            train_pred, val_pred = expit(train_pred), expit(val_pred)
             train_accuracy = lo.get_accuracy(train_true, train_pred)
-            test_accuracy = lo.get_accuracy(test_true, test_pred)
-            try:
-                roc_score = roc_auc_score(test_true, test_pred)
-            except:
-                roc_score = 0
-            if test_loss < best_test_loss:
-                lo.save_weights(model, os.path.join(log_dir, "student_general_testing" + ".pt"))
-                best_test_loss = test_loss
+            val_accuracy = lo.get_accuracy(val_true, val_pred)
 
+            train_auc_score = roc_auc_score(train_true, train_pred)
+            val_auc_score = roc_auc_score(val_true, val_pred)
+
+            if best_dev_auc < val_auc_score:
+                lo.save_weights(model, os.path.join(log_dir, "student_general_testing" + ".pt"))
+                best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
             num_student_params = count_parameters(model)
-
             elapsed = time.time() - start
+
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, test_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
-                                                                                 roc_score))
+            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, val_loss))
+            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTrain AUC: {:.7f}\tVal AUC: {:.7f}\n".format(train_accuracy, val_accuracy,
+                                                                                 train_auc_score, val_auc_score))
             print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params, num_teacher_params))
+
+
+            writer.add_scalar('loss/train', train_loss, epoch)
+            writer.add_scalar('loss/val', val_loss, epoch)
+            writer.add_scalar('AUC/train', train_auc_score, epoch)
+            writer.add_scalar('AUC/val', val_auc_score, epoch)
 
             with open(log_file, "a+") as log:
                 log.write(
-                    "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
-                        epoch, train_loss, test_loss, train_accuracy, test_accuracy, roc_score
+                    "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tVal AUC: {:.7f}\n".format(
+                        epoch, train_loss, val_loss, train_accuracy, val_accuracy, val_auc_score
                     )
                 )
 
@@ -916,6 +922,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
         f.write(f"Evaluator: {evaluator}\n")
 
     label_file = os.path.join(base_dir, "processed", "{}_labels.csv".format(task))
+    #Will have to change this if I want to do runs on pretrain dataset:
     if not full_data:
         dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
     else:
