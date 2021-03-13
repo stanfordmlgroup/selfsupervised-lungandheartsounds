@@ -444,17 +444,8 @@ class ContrastiveLearner(object):
 
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
-        print("self.dataset is:")
-        print(self.dataset)
-
         df = self.dataset.labels
-        print("df is:")
-        print(df)
-
         data = self.dataset.data
-        print("data is:")
-        print(data)
-
         val_dataset = get_dataset(task, label_file, base_dir, split="val")
 
         train_df = df
@@ -470,7 +461,7 @@ class ContrastiveLearner(object):
             model = CNNlight(task, 1).to(self.device)
 
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                       transform=augment, data=train_data)
+                                        data=train_data) #Put in train mode to get X and y from pretrain data
         val_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=val_df, data=val_data)
         loss = BCEWithLogitsLoss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -670,18 +661,8 @@ class ContrastiveLearner(object):
         print("Number of batches is:")
         print(len(loader))
         print("*******")
-
-        #Get this loop figured out for pretrain
-        #print("Loader values are:")
-        #print(loader)
         for i, data in enumerate(loader):
-            #print(data)
             X, y = data
-            #print(X.shape)
-            #print(xj.shape)
-            #print(y.shape)
-            #print(y)
-            #print(X)
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
             #y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
@@ -728,7 +709,6 @@ class ContrastiveLearner(object):
             #print(train_loss)
 
             #Put the actual predictions in y_pred:
-            #y_true.extend(target_y_reshaped.tolist())
             y_true.extend(y.tolist())
             y_pred.extend(student_y.tolist())
             #print(y_true)
