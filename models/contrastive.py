@@ -449,6 +449,9 @@ class ContrastiveLearner(object):
         print(df)
 
         data = self.dataset.data
+        print("data is:")
+        print(data)
+
         val_dataset = get_dataset(task, label_file, base_dir, split="val")
 
         train_df = df
@@ -660,7 +663,6 @@ class ContrastiveLearner(object):
         teacher.to(self.device).eval()
         y_true = []
         y_pred = []
-
 
         print("Number of batches is:")
         print(len(loader))
