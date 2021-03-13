@@ -675,7 +675,7 @@ class ContrastiveLearner(object):
         #print("Loader values are:")
         #print(loader)
         for i, data in enumerate(loader):
-            print(data)
+            #print(data)
             X, y = data
             #print(X.shape)
             #print(xj.shape)
@@ -713,8 +713,8 @@ class ContrastiveLearner(object):
                 print(student_y)
                 print("Student Prediction is:")
                 print(student_probs_tensor)
-                #print("Actual y values are:")
-                #print(y)
+                print("Actual y values are:")
+                print(y)
                 #print("y_true is")
                 #print(y_true)
                 #print("y_pred is")
