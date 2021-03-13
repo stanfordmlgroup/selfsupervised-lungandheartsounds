@@ -469,7 +469,7 @@ class ContrastiveLearner(object):
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
 
-        train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "pretrain", df=train_df,
+        train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                        transform=augment, data=train_data)
         val_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=val_df, data=val_data)
         loss = BCEWithLogitsLoss().to(self.device)
