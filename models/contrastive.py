@@ -534,6 +534,10 @@ class ContrastiveLearner(object):
 
             writer.add_scalar('loss/train', train_loss, epoch)
             writer.add_scalar('loss/val', val_loss, epoch)
+
+            writer.add_scalar('accuracy/train', train_accuracy, epoch)
+            writer.add_scalar('accuracy/val', val_accuracy, epoch)
+
             writer.add_scalar('AUC/train', train_auc_score, epoch)
             writer.add_scalar('AUC/val', val_auc_score, epoch)
             writer.add_scalar('student_params', num_student_params, epoch)
