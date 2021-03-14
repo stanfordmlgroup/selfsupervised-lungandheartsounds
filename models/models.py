@@ -191,13 +191,13 @@ class DistillCNN(torch.nn.Module):
         self.task = task
         super(DistillCNN, self).__init__()
         self.cnn_layers = Sequential(
-            Conv2d(1, 64, kernel_size=[7, 11], stride=2, padding=1),  # Test out different values (make square)
+            Conv2d(1, 64, kernel_size=9, stride=2, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
             Conv2d(64, 128, kernel_size=3, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(128, 128, kernel_size=1, padding=1),  # Remove padding of 1
+            Conv2d(128, 128, kernel_size=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
         )
@@ -219,7 +219,7 @@ class DistillCNN(torch.nn.Module):
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        #print(x.shape)
+        print(x.shape)
         x = self.linear_layers(x)
         return x
 
