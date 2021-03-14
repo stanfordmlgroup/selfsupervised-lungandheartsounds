@@ -444,12 +444,21 @@ class ContrastiveLearner(object):
 
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
+
+        #Pretrain total df and data
         df = self.dataset.labels
         data = self.dataset.data
-        val_dataset = get_dataset(task, label_file, base_dir, split="val")
 
-        train_df = df
-        train_data = data
+        splits_dir = os.path.join(base_dir, "splits")
+        pretrain_only_text_file = os.path.join(splits_dir, "pretrain-only.txt")
+        with open(pretrain_only_text_file, "r") as pretrain_only_list:
+            pretrain_only_IDs = set([line.strip() for line in pretrain_only_list])
+        train_df = df[df.ID.isin(pretrain_only_IDs)]
+        train_data = data.take(train_df.index.tolist(), axis=0)
+        #train_df = df
+        #train_data = data
+
+        val_dataset = get_dataset(task, label_file, base_dir, split="val")
         val_df = val_dataset.labels
         val_data = val_dataset.data
         print('Batch Size: {}'.format(self.batch_size))
@@ -933,7 +942,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     # if not full_data:
     #     dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
     # else:
-    dataset = get_dataset(task, label_file, base_dir, split="pretrain-only", train_prop=train_prop)
+    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
         #Changed to evaluator_1

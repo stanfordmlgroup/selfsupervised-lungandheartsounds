@@ -547,8 +547,6 @@ class HeartDataset(Dataset):
                 df = self.get_split(df, os.path.join(splits_dir, "train.txt"), train_prop=train_prop)
             elif split == "pretrain":
                 df = self.get_split(df, os.path.join(splits_dir, "pretrain.txt"), train_prop=train_prop)
-            elif split == "pretrain-only":
-                df = self.get_split(df, os.path.join(splits_dir, "pretrain-only.txt"), train_prop=train_prop)
             elif split == "test":
                 df = self.get_split(df, os.path.join(splits_dir, "test.txt"))
             elif split == "val":
