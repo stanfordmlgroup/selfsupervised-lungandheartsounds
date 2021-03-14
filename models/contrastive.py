@@ -70,21 +70,35 @@ class ContrastiveLearner(object):
     def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0., restore=False):
         df = self.dataset.labels.reset_index()
         data = self.dataset.data
-        # scaler = preprocessing.StandardScaler()
-        # scaler.fit(data.reshape((data.shape[0], -1)))
-        # scaler.transform(data)
-        train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
-        select = np.in1d(range(data.shape[0]), train_list)
-        train_df = df[df.index.isin(train_list)]
-        train_data = data[select]
-        test_data = data[~select]
-        test_df = df[~df.index.isin(train_list)]
-        if self.exp in [2, 4, 5, 6]:
-            self.batch_size = 1
+
+        splits_dir = os.path.join(base_dir, "splits")
+        pretrain_only_text_file = os.path.join(splits_dir, "pretrain-only.txt")
+        with open(pretrain_only_text_file, "r") as pretrain_only_list:
+            pretrain_only_IDs = set([line.strip() for line in pretrain_only_list])
+        train_df = df[df.ID.isin(pretrain_only_IDs)]
+        train_data = data.take(train_df.index.tolist(), axis=0)
+
         train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=train_df, transform=augment, data=train_data, exp=self.exp)
         valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=test_df, transform=augment, data=test_data, exp=self.exp)
+
+        # scaler = preprocessing.StandardScaler()
+        # scaler.fit(data.reshape((data.shape[0], -1)))
+        # scaler.transform(data)
+
+        # train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
+        # select = np.in1d(range(data.shape[0]), train_list)
+        # train_df = df[df.index.isin(train_list)]
+        # train_data = data[select]
+        # test_data = data[~select]
+        # test_df = df[~df.index.isin(train_list)]
+        if self.exp in [2, 4, 5, 6]:
+            self.batch_size = 1
+        # train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
+        #                                df=train_df, transform=augment, data=train_data, exp=self.exp)
+        # valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
+        #                                df=test_df, transform=augment, data=test_data, exp=self.exp)
 
         if self.model is not None:
             model = self.model
@@ -107,6 +121,8 @@ class ContrastiveLearner(object):
             start = time.time()
             epoch_loss = 0
             num_batches = len(train_loader)
+            print("Number of batches is:")
+            print(num_batches)
             if self.exp in [2, 4, 5, 6]:
                 for data in train_loader:
                     xis, xjs = [], []
