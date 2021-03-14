@@ -485,7 +485,7 @@ class ContrastiveLearner(object):
             val_auc_score = roc_auc_score(val_true, val_pred)
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_cnn" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_pretrainONLY_distill_cnn_old_teacher" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
@@ -933,7 +933,7 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     # if not full_data:
     #     dataset = get_dataset(task, label_file, base_dir, split="train", train_prop=train_prop)
     # else:
-    dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
+    dataset = get_dataset(task, label_file, base_dir, split="pretrain-only", train_prop=train_prop)
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
         #Changed to evaluator_1
