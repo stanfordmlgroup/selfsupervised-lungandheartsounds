@@ -969,8 +969,8 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     dataset = get_dataset(task, label_file, base_dir, split="pretrain", train_prop=train_prop)
     learner = ContrastiveLearner(dataset, num_epochs, batch_size, log_dir)
     try:
-        #Changed to evaluator_1
-        state_dict = torch.load(os.path.join(log_dir, 'evaluator_1.pt'))
+        #Changed to evaluator_FINETUNE2.pt
+        state_dict = torch.load(os.path.join(log_dir, 'evaluator_FINETUNE2.pt'))
         encoder = learner.get_model(256)
         teacher = SSL(encoder)
         teacher.load_state_dict(state_dict)
