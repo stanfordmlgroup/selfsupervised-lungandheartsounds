@@ -77,6 +77,9 @@ class ContrastiveLearner(object):
             pretrain_only_IDs = set([line.strip() for line in pretrain_only_list])
         train_df = df[df.ID.isin(pretrain_only_IDs)]
         train_data = data.take(train_df.index.tolist(), axis=0)
+        val_dataset = get_dataset(task, label_file, base_dir, split="val")
+        test_df = val_dataset.labels
+        test_data = val_dataset.data
 
         train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=train_df, transform=augment, data=train_data, exp=self.exp)
