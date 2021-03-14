@@ -205,7 +205,7 @@ class DistillCNN(torch.nn.Module):
         if self.task == "disease" or self.task == "symptom":
             hidden_dim = 17408
         elif self.task == "heart":
-            hidden_dim = 67200
+            hidden_dim = 44800
         elif self.task == "heartchallenge":
             hidden_dim = 1024
         self.linear_layers = Sequential(
@@ -219,7 +219,7 @@ class DistillCNN(torch.nn.Module):
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        print(x.shape)
+        #print(x.shape)
         x = self.linear_layers(x)
         return x
 
