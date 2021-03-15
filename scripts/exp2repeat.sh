@@ -86,15 +86,15 @@ done
 for i in 40 41 42 43 44 45 46 47 48 49
 do
 	python contrastive.py --mode train --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune
+	python contrastive.py --mode test --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune
+	python contrastive.py --mode test --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune
+	python contrastive.py --mode test --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune
+	python contrastive.py --mode test --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune
+	python contrastive.py --mode test --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune --model_num $i
 done
 for i in 50 51 52 53 54 55 56 57 58 59
 do
@@ -113,15 +113,15 @@ done
 for i in 60 61 62 63 64
 do
   python contrastive.py --mode train --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune
+  python contrastive.py --mode test --task disease --log_dir 3_10/spec-pre-large --data ../data --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune
+  python contrastive.py --mode test --task disease --log_dir 3_10/split-pre-large --data ../data --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune
+  python contrastive.py --mode test --task disease --log_dir 3_10/spec-split-pre-large --data ../data --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune
+  python contrastive.py --mode test --task disease --log_dir 3_10/freq-pre-large --data ../data --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune
+  python contrastive.py --mode test --task disease --log_dir 3_10/time-pre-large --data ../data --evaluator fine-tune --model_num $i
 done
 
 for i in 65 66 67 68 69

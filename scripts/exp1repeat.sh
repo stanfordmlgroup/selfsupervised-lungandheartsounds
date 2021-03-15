@@ -70,7 +70,7 @@ do
 	python contrastive.py --mode test --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25
 	python contrastive.py --mode test --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune --model_num $i
- python contrastive.py --mode train --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25
+  python contrastive.py --mode train --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25
 	python contrastive.py --mode test --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --model_num $i
 done
 for i in 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39
@@ -91,15 +91,15 @@ done
 for i in 40 41 42 43 44 45 46 47 48 49
 do
 	python contrastive.py --mode train --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune
+	python contrastive.py --mode test --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune
+	python contrastive.py --mode test --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune
+	python contrastive.py --mode test --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune --model_num $i
 	python contrastive.py --mode train --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune
+	python contrastive.py --mode test --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune --train_prop .5 --epoch 25
-	python contrastive.py --mode test --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune
+	python contrastive.py --mode test --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune --model_num $i
 done
 for i in 50 51 52 53 54 55 56 57 58 59
 do
@@ -118,15 +118,15 @@ done
 for i in 60 61 62 63 64
 do
   python contrastive.py --mode train --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune
+  python contrastive.py --mode test --task heart --log_dir 3_10/spec-pre-large --data ../heart --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune
+  python contrastive.py --mode test --task heart --log_dir 3_10/split-pre-large --data ../heart --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune
+  python contrastive.py --mode test --task heart --log_dir 3_10/spec-split-pre-large --data ../heart --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune
+  python contrastive.py --mode test --task heart --log_dir 3_10/freq-pre-large --data ../heart --evaluator fine-tune --model_num $i
   python contrastive.py --mode train --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune --train_prop 1 --epoch 25
-  python contrastive.py --mode test --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune
+  python contrastive.py --mode test --task heart --log_dir 3_10/time-pre-large --data ../heart --evaluator fine-tune  --model_num $i
 done
 
 for i in 65 66 67 68 69

@@ -6,18 +6,17 @@ import datetime
 import argparse
 import torch
 from torch.nn import BCEWithLogitsLoss
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix, roc_curve
-from sklearn.dummy import DummyClassifier
+from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
 from glob import glob
 from scipy.special import expit
 import torch.nn.functional as F
 from data import get_data_loader, get_dataset, get_scikit_loader
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.linear_model import LogisticRegression
 import joblib
 import sys
 import copy
+import matplotlib.pyplot as plt
+
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -79,8 +78,7 @@ class ContrastiveLearner(object):
         else:
             model = self.get_model(out_dim=256, restore=restore)
 
-        optimizer = torch.optim.Adam(model.parameters(), learning_rate, weight_decay=10E-6)
-
+        optimizer = torch.optim.Adam(model.parameters(), learning_rate, weight_decay=1e-6)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader), eta_min=0,
                                                                last_epoch=-1)
 
@@ -91,6 +89,27 @@ class ContrastiveLearner(object):
                    os.path.join(self.log_dir, 'encoder.pth'))
         writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs',datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
         batch_counter=0
+        model.eval()
+        train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
+                                             encoder=model, data=train_data)
+        test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
+                                           encoder=model, data=test_data)
+        train_X = np.asarray(train_X)
+        train_y = np.asarray(train_y)
+        test_X = np.asarray(test_X)
+        test_y = np.asarray(test_y)
+        writer.add_embedding(test_X.reshape((test_X.shape[0], -1)), metadata=test_y.tolist(), global_step=0)
+
+        evaluator = KNeighborsClassifier(n_neighbors=10)
+        evaluator.fit(train_X, train_y)
+
+        try:
+            roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
+        except:
+            roc_score = 0
+        writer.add_scalar('auc/pretrain', roc_score, 0)
+        model.train()
+
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
@@ -132,6 +151,12 @@ class ContrastiveLearner(object):
                     optimizer.step()
                     epoch_loss += loss
                     writer.add_scalar('loss/pretrain',loss,batch_counter)
+                    for i, layer in enumerate(model.children()):
+                        for j, param in enumerate(layer.parameters()):
+                            writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
+                    # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
+                    # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
+
                     batch_counter+=1
             epoch_loss /= float(num_batches)
             # validate the model
@@ -142,6 +167,33 @@ class ContrastiveLearner(object):
                 torch.save(model.state_dict(),
                            os.path.join(self.log_dir, 'checkpoints', 'encoder_{}.pth'.format(epoch_counter)))
 
+            model.eval()
+            train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
+                                                 encoder=model, data=train_data)
+            test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
+                                               encoder=model, data=test_data)
+            train_X = np.asarray(train_X)
+            train_y = np.asarray(train_y)
+            test_X = np.asarray(test_X)
+            test_y = np.asarray(test_y)
+            writer.add_embedding(test_X.reshape((test_X.shape[0],-1)), metadata=test_y.tolist(), global_step=epoch_counter)
+
+            evaluator = KNeighborsClassifier(n_neighbors=10)
+            evaluator.fit(train_X, train_y)
+
+            try:
+                roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
+            except:
+                roc_score = 0
+            writer.add_scalar('auc/pretrain', roc_score, epoch_counter)
+            model.train()
+
+            fold_train_acc = evaluator.score(test_X, test_y)
+            if roc_score < best_auc:
+                # save the model weights
+                best_auc = roc_score
+                torch.save(model.state_dict(),
+                           os.path.join(self.log_dir, 'encoder.pth'))
             elapsed = time.time() - start
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch_counter, elapsed))
             print("\t\tTrain loss: {:.7f}\tVal loss: {:.7f}".format(epoch_loss, valid_loss))
@@ -151,43 +203,18 @@ class ContrastiveLearner(object):
                         epoch_counter, epoch_loss, valid_loss
                     )
                 )
-
-            encoder = model.eval()
-            train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
-                                                 encoder=encoder, data=train_data)
-            test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=test_df,
-                                               encoder=encoder, data=test_data)
-            train_X = np.asarray(train_X)
-            train_y = np.asarray(train_y)
-            test_X = np.asarray(test_X)
-            test_y = np.asarray(test_y)
-            evaluator = KNeighborsClassifier(n_neighbors=10)
-            evaluator.fit(train_X, train_y)
-            fold_train_acc = evaluator.score(test_X, test_y)
-            try:
-                roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
-            except:
-                roc_score = 0
-            model.train()
-
-            if roc_score < best_auc:
-                # save the model weights
-                best_auc = roc_score
-                torch.save(model.state_dict(),
-                           os.path.join(self.log_dir, 'encoder.pth'))
-
             print(
                 "pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
             with open(log_file, "a+") as log:
-                log.write("pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
+                log.write("\t\tpretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
 
             # warmup for the first 10 epochs
             if epoch_counter >= 10:
                 scheduler.step()
             cosine_lr_decay = scheduler.get_lr()[0]
-            print("\t\tcosine lr decay: {:.7f}".format(cosine_lr_decay))
+            print("\t\tcosine lr decay: {:.10f}".format(cosine_lr_decay))
             with open(log_file, "a+") as log:
-                log.write("\tcosine lr decay: {:.7f}\n".format(cosine_lr_decay))
+                log.write("\tcosine lr decay: {:.10f}\n".format(cosine_lr_decay))
             # if counter > 10:
             #     print("Early stop...")
             #     break
@@ -218,14 +245,17 @@ class ContrastiveLearner(object):
         valid_auc_counter = 0
         train_auc = 0
         test_auc = 0
+        train_df = df
+        test_df = test_dataset.labels
+        train_data = data
+        test_data = test_dataset.data
+
+        sanity_loader = get_data_loader(task, label_file, base_dir, 1, "test")
+
         if encoder is not None:
             total_train_acc = 0
             base_encoder = encoder
 
-            train_df = df
-            test_df = test_dataset.labels
-            train_data = data
-            test_data = test_dataset.data
             encoder = copy.deepcopy(base_encoder).to(self.device)
             if evaluator_type == "linear":
                 for layer in encoder.children():
@@ -236,9 +266,10 @@ class ContrastiveLearner(object):
                                                      encoder, data=train_data)
                 id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "val", test_df,
                                                        encoder, data=test_data)
+                _, X, y = get_scikit_loader(self.device, task, label_file, base_dir, "test", encoder=encoder)
                 # optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
                 #                            lr=10 * learning_rate)
-                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
                 counter = 0
                 best_test_loss = np.inf
                 epoch = 0
@@ -248,6 +279,8 @@ class ContrastiveLearner(object):
                                                                         self.device,
                                                                         loss)
                     test_loss, test_true, test_pred = self._predict(model, id, test_X, test_y, self.device, loss)
+                    sanity_loss, sanity_true, sanity_pred = self._predict(model, _, X, y, self.device, loss)
+                    sanity_pred = expit(sanity_pred)
                     train_pred, test_pred = expit(train_pred), expit(test_pred)
                     train_accuracy = lo.get_accuracy(train_true, train_pred)
                     test_accuracy = lo.get_accuracy(test_true, test_pred)
@@ -260,7 +293,9 @@ class ContrastiveLearner(object):
                     try:
                         test_roc_score = roc_auc_score(test_true, test_pred)
                         train_roc_score = roc_auc_score(train_true, train_pred)
-
+                        sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
+                        writer.add_scalar('AUC/test', sanity_roc_score, epoch)
+                        writer.add_scalar('loss/test', sanity_loss, epoch)
                         train_auc += train_roc_score
                         test_auc += test_roc_score
                         valid_auc_counter += 1
@@ -283,7 +318,7 @@ class ContrastiveLearner(object):
                 train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                                data=train_data)
                 test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
-                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
                 counter = 0
                 best_test_loss = np.inf
@@ -294,6 +329,9 @@ class ContrastiveLearner(object):
                     train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                      loss)
                     test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                    sanity_loss, sanity_true, sanity_pred = self._test(model, sanity_loader, self.device, loss)
+                    sanity_pred = expit(sanity_pred)
+
                     train_pred, test_pred = expit(train_pred), expit(test_pred)
                     train_accuracy = lo.get_accuracy(train_true, train_pred)
                     test_accuracy = lo.get_accuracy(test_true, test_pred)
@@ -310,7 +348,9 @@ class ContrastiveLearner(object):
                     try:
                         test_roc_score = roc_auc_score(test_true, test_pred)
                         train_roc_score = roc_auc_score(train_true, train_pred)
-
+                        sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
+                        writer.add_scalar('AUC/test', sanity_roc_score, epoch)
+                        writer.add_scalar('loss/test', sanity_loss, epoch)
                         train_auc += train_roc_score
                         test_auc += test_roc_score
                         valid_auc_counter += 1
@@ -349,15 +389,11 @@ class ContrastiveLearner(object):
                 model = self.get_model(1)
             elif evaluator_type == 'cnn':
                 model = CNN(task, 1).to(self.device)
-            train_df = df
-            test_df = test_dataset.labels
-            train_data = data
-            test_data = test_dataset.data
+
             train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
                                            transform=augment, data=train_data)
             test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
-            # learning_rate = learning_rate * 10.0
-            # print("LR: {:.7f}".format(learning_rate))
+
             optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
             best_test_loss = np.inf
@@ -368,6 +404,8 @@ class ContrastiveLearner(object):
                 train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
                                                                  loss)
                 test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
+                sanity_loss, sanity_true, sanity_pred = self._test(model, sanity_loader, self.device, loss)
+                sanity_pred = expit(sanity_pred)
                 train_pred, test_pred = expit(train_pred), expit(test_pred)
                 train_accuracy = lo.get_accuracy(train_true, train_pred)
                 test_accuracy = lo.get_accuracy(test_true, test_pred)
@@ -375,7 +413,9 @@ class ContrastiveLearner(object):
                 try:
                     test_roc_score = roc_auc_score(test_true, test_pred)
                     train_roc_score = roc_auc_score(train_true, train_pred)
-
+                    sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
+                    writer.add_scalar('AUC/test', sanity_roc_score, epoch)
+                    writer.add_scalar('loss/test', sanity_loss, epoch)
                     train_auc += train_roc_score
                     test_auc += test_roc_score
                     valid_auc_counter += 1
@@ -804,6 +844,12 @@ class ContrastiveLearner(object):
     def _step(self, model, xis, xjs, y=None):
         xis = xis.view(xis.shape[0], 1, xis.shape[1], xis.shape[2]).to(self.device)
         xjs = xjs.view(xjs.shape[0], 1, xjs.shape[1], xjs.shape[2]).to(self.device)
+
+        # a,b,c=plt.hist(xis[0].reshape(-1).cpu().detach().numpy(),10)
+        # plt.show()
+        # a,b,c=plt.hist(xjs[0].reshape(-1).cpu().detach().numpy(),10)
+        # plt.show()
+
         # get the representations and the projections
         zis = model(xis)  # [N,C]
         # get the representations and the projections
@@ -865,7 +911,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None, 
     batch_size = 16
     if train_prop == .01:
         batch_size = 5
-    learning_rate = .0001
+    learning_rate = .00001
 
     with open(os.path.join(log_dir, "pretrain_params.txt"), "w") as f:
         f.write(f"Epochs: {num_epochs}\n")
@@ -885,7 +931,7 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = .0001
+    learning_rate = .000001
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
