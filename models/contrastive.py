@@ -518,19 +518,19 @@ class ContrastiveLearner(object):
             val_auc_score = roc_auc_score(val_true, val_pred)
 
             # Do runs for teacher (using _test function)
-            teacher_train_loss, teacher_train_true, teacher_train_pred = self._test(teacher, train_loader, self.device,
-                                                                                    loss)
-            teacher_val_loss, teacher_val_true, teacher_val_pred = self._test(teacher, val_loader, self.device,
-                                                                              loss)
-            teacher_train_pred, teacher_val_pred = expit(teacher_train_pred), expit(teacher_val_pred)
-            teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
-            teacher_val_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
-            teacher_train_auc_score = roc_auc_score(teacher_train_true, teacher_train_pred)
-            teacher_val_auc_score = roc_auc_score(teacher_val_true, teacher_val_pred)
+            # teacher_train_loss, teacher_train_true, teacher_train_pred = self._test(teacher, train_loader, self.device,
+            #                                                                         loss)
+            # teacher_val_loss, teacher_val_true, teacher_val_pred = self._test(teacher, val_loader, self.device,
+            #                                                                   loss)
+            # teacher_train_pred, teacher_val_pred = expit(teacher_train_pred), expit(teacher_val_pred)
+            # teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
+            # teacher_val_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
+            # teacher_train_auc_score = roc_auc_score(teacher_train_true, teacher_train_pred)
+            # teacher_val_auc_score = roc_auc_score(teacher_val_true, teacher_val_pred)
             # End teacher calculations
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_with_new_teacher_eval" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "studentONLY_new_pretrain_distill_baseline" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
@@ -544,11 +544,11 @@ class ContrastiveLearner(object):
             print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params, num_teacher_params))
 
             # Prints for teacher:
-            print("Teacher results: (Should be same b/t iterations)")
-            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_val_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(
-                teacher_train_acc, teacher_val_acc,
-                teacher_train_auc_score, teacher_val_auc_score))
+            # print("Teacher results: (Should be same b/t iterations)")
+            # print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_val_loss))
+            # print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(
+            #     teacher_train_acc, teacher_val_acc,
+            #     teacher_train_auc_score, teacher_val_auc_score))
             # End teacher prints
 
             writer.add_scalar('loss/train', train_loss, epoch)
@@ -722,16 +722,16 @@ class ContrastiveLearner(object):
         for i, data in enumerate(loader):
             X, y = data
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device).float()
-            #y_reshaped = torch.reshape(y, (y.shape[0], 1))
+            y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
 
-            target_y = teacher(X)
-            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
+            #target_y = teacher(X)
+            #target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
             #print("target_y is:")
             #print(target_y_reshaped)
 
-            target_probs = expit(target_y_reshaped.cpu().detach().numpy())
-            target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
+            #target_probs = expit(target_y_reshaped.cpu().detach().numpy())
+            #target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
             #print("Teacher Prediction is:")
             #print(target_probs_tensor)
 
@@ -744,10 +744,10 @@ class ContrastiveLearner(object):
             #print(student_probs_tensor)
 
             if i % 20 == 0:
-                print("target_y is:")
-                print(target_y_reshaped)
-                print("Teacher Prediction is:")
-                print(target_probs_tensor)
+                #print("target_y is:")
+                #print(target_y_reshaped)
+                #print("Teacher Prediction is:")
+                #print(target_probs_tensor)
                 print("student_y is:")
                 print(student_y)
                 print("Student Prediction is:")
@@ -761,7 +761,7 @@ class ContrastiveLearner(object):
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, target_probs_tensor)
+            train_loss = loss(student_y, y_reshaped) #For student only
             #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
