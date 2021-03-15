@@ -549,7 +549,7 @@ class ContrastiveLearner(object):
             # End teacher calculations
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "studentONLY_new_pretrain_distill_baseline" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_gen_testing" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
@@ -744,13 +744,13 @@ class ContrastiveLearner(object):
             y_reshaped = torch.reshape(y, (y.shape[0], 1))
             print("Iteration number: " + str(i))
 
-            #target_y = teacher(X)
-            #target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
+            target_y = teacher(X)
+            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
             #print("target_y is:")
             #print(target_y_reshaped)
 
-            #target_probs = expit(target_y_reshaped.cpu().detach().numpy())
-            #target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
+            target_probs = expit(target_y_reshaped.cpu().detach().numpy())
+            target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
             #print("Teacher Prediction is:")
             #print(target_probs_tensor)
 
@@ -763,24 +763,20 @@ class ContrastiveLearner(object):
             #print(student_probs_tensor)
 
             if i % 20 == 0:
-                #print("target_y is:")
-                #print(target_y_reshaped)
-                #print("Teacher Prediction is:")
-                #print(target_probs_tensor)
+                print("target_y is:")
+                print(target_y_reshaped)
+                print("Teacher Prediction is:")
+                print(target_probs_tensor)
                 print("student_y is:")
                 print(student_y)
                 print("Student Prediction is:")
                 print(student_probs_tensor)
                 print("Actual y values are:")
                 print(y)
-                #print("y_true is")
-                #print(y_true)
-                #print("y_pred is")
-                #print(y_pred)
 
             #Calculate the loss:
             optimizer.zero_grad()
-            train_loss = loss(student_y, y_reshaped) #For student only
+            train_loss = loss(student_y, target_probs_tensor)
             #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
             #print("Iteration loss is:")
             #print(train_loss)
