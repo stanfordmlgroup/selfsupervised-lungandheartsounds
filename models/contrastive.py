@@ -530,7 +530,7 @@ class ContrastiveLearner(object):
             # End teacher calculations
 
             if best_dev_auc < val_auc_score:
-                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_with_new_teacher_15" + ".pt"))
+                lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_with_new_teacher_eval" + ".pt"))
                 best_dev_auc = val_auc_score
 
             num_teacher_params = count_parameters(teacher)
