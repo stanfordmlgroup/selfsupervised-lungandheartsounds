@@ -517,6 +517,18 @@ class ContrastiveLearner(object):
             train_auc_score = roc_auc_score(train_true, train_pred)
             val_auc_score = roc_auc_score(val_true, val_pred)
 
+            # Do runs for teacher (using _test function)
+            teacher_train_loss, teacher_train_true, teacher_train_pred = self._test(teacher, train_loader, self.device,
+                                                                                    loss)
+            teacher_val_loss, teacher_val_true, teacher_val_pred = self._test(teacher, val_loader, self.device,
+                                                                              loss)
+            teacher_train_pred, teacher_val_pred = expit(teacher_train_pred), expit(teacher_val_pred)
+            teacher_train_acc = lo.get_accuracy(teacher_train_true, teacher_train_pred)
+            teacher_val_acc = lo.get_accuracy(teacher_val_true, teacher_val_pred)
+            teacher_train_auc_score = roc_auc_score(teacher_train_true, teacher_train_pred)
+            teacher_val_auc_score = roc_auc_score(teacher_val_true, teacher_val_pred)
+            # End teacher calculations
+
             if best_dev_auc < val_auc_score:
                 lo.save_weights(model, os.path.join(log_dir, "student_pretrain_distill_with_new_teacher_15" + ".pt"))
                 best_dev_auc = val_auc_score
@@ -531,6 +543,13 @@ class ContrastiveLearner(object):
                                                                                  train_auc_score, val_auc_score))
             print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params, num_teacher_params))
 
+            # Prints for teacher:
+            print("Teacher results: (Should be same b/t iterations)")
+            print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(teacher_train_loss, teacher_val_loss))
+            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTeacher Train AUC: {:.7f}\tTeacher Val AUC: {:.7f}\n".format(
+                teacher_train_acc, teacher_val_acc,
+                teacher_train_auc_score, teacher_val_auc_score))
+            # End teacher prints
 
             writer.add_scalar('loss/train', train_loss, epoch)
             writer.add_scalar('loss/val', val_loss, epoch)
