@@ -154,47 +154,86 @@ class CNNlight(torch.nn.Module):
         self.task = task
         super(CNNlight, self).__init__()
         self.cnn_layers = Sequential(
-            Conv2d(1, 64, kernel_size=[7, 11], stride=2, padding=1),
+            Conv2d(1, 64, kernel_size=[7, 11], stride=2, padding=1), #Test out different values (make square)
             LeakyReLU(inplace=True),
             MaxPool2d(2),
             Conv2d(64, 128, kernel_size=3, padding=1),
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-            Conv2d(128, 128, kernel_size=1, padding=1),
+            Conv2d(128, 128, kernel_size=1, padding=1), #Remove padding of 1
             LeakyReLU(inplace=True),
             MaxPool2d(2),
-
         )
         hidden_dim = 0
         if self.task == "disease" or self.task == "symptom":
             hidden_dim = 17408
         elif self.task == "heart":
-            hidden_dim = 4096
+            hidden_dim = 67200
         elif self.task == "heartchallenge":
             hidden_dim = 1024
         self.linear_layers = Sequential(
             # 11904 for disease/symptom, 119040 for heart, 35712 for heart challenge
-            Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
-            Linear(512, classes)
+            # Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
+            # Linear(512, classes)
+            Linear(hidden_dim, 256), ReLU(inplace=True), Dropout(0.5), Linear(256, 128), ReLU(inplace=True),
+            Linear(128, classes)
         )
 
     def forward(self, x):
         x = self.cnn_layers(x)
         x = x.view(x.size(0), -1)
-        # print(x.shape)
+        #print(x.shape)
+        x = self.linear_layers(x)
+        return x
+
+class DistillCNN(torch.nn.Module):
+    def __init__(self, task, classes):
+        self.task = task
+        super(DistillCNN, self).__init__()
+        self.cnn_layers = Sequential(
+            Conv2d(1, 64, kernel_size=9, stride=2, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+            Conv2d(64, 128, kernel_size=3, padding=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+            Conv2d(128, 128, kernel_size=1),
+            LeakyReLU(inplace=True),
+            MaxPool2d(2),
+        )
+        hidden_dim = 0
+        if self.task == "disease" or self.task == "symptom":
+            hidden_dim = 17408
+        elif self.task == "heart":
+            hidden_dim = 44800
+        elif self.task == "heartchallenge":
+            hidden_dim = 1024
+        self.linear_layers = Sequential(
+            # 11904 for disease/symptom, 119040 for heart, 35712 for heart challenge
+            # Linear(hidden_dim, 4096), ReLU(inplace=True), Dropout(0.5), Linear(4096, 512), ReLU(inplace=True),
+            # Linear(512, classes)
+            Linear(hidden_dim, 128), ReLU(inplace=True), Dropout(0.5), Linear(128, 64), ReLU(inplace=True),
+            Linear(64, classes)
+        )
+
+    def forward(self, x):
+        x = self.cnn_layers(x)
+        x = x.view(x.size(0), -1)
+        #print(x.shape)
         x = self.linear_layers(x)
         return x
 
 
+
 def train(epoch, arch, model, loader, optimizer, device, loss):
-    if arch == "CNN" or arch == "CNNlight":
+    if arch == "CNN" or arch == "CNNlight" or arch == "DistillCNN":
         model.train()
     y_true = []
     y_pred = []
 
     for i, data in enumerate(loader):
         X, y = data
-        if arch == "CNN" or arch == "CNNlight":
+        if arch == "CNN" or arch == "CNNlight" or arch == "DistillCNN":
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
             optimizer.zero_grad()
             output = model(X)
@@ -221,14 +260,14 @@ def train(epoch, arch, model, loader, optimizer, device, loss):
 
 @torch.no_grad()
 def test(arch, model, loader, device, loss):
-    if arch == "CNN" or arch == "CNNlight":
+    if arch == "CNN" or arch == "CNNlight" or arch == "DistillCNN":
         model.eval()
     y_true = []
     y_pred = []
 
     for i, data in enumerate(loader):
         X, y = data
-        if arch == "CNN" or arch == "CNNlight":
+        if arch == "CNN" or arch == "CNNlight" or arch == "DistillCNN":
             X, y = X.view(X.shape[0], 1, X.shape[1], X.shape[2]).to(device), y.to(device)
             output = model(X)
             y_true.extend(y.tolist())
