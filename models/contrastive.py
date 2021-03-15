@@ -67,40 +67,19 @@ class ContrastiveLearner(object):
         return model
 
     def pre_train(self, log_file, task, label_file, augment=None, learning_rate=0., restore=False):
-        df = self.dataset.labels.reset_index()
-        data = self.dataset.data
+        test_dataset = get_dataset(task, label_file, base_dir, split="val")
+        train_df = self.dataset.labels.reset_index()
+        train_data = self.dataset.data
+        test_df = test_dataset.labels.reset_index()
+        test_data = test_dataset.data
 
-        splits_dir = os.path.join(base_dir, "splits")
-        pretrain_only_text_file = os.path.join(splits_dir, "pretrain-only.txt")
-        with open(pretrain_only_text_file, "r") as pretrain_only_list:
-            pretrain_only_IDs = set([line.strip() for line in pretrain_only_list])
-        train_df = df[df.ID.isin(pretrain_only_IDs)]
-        train_data = data.take(train_df.index.tolist(), axis=0)
-        val_dataset = get_dataset(task, label_file, base_dir, split="val")
-        test_df = val_dataset.labels
-        test_data = val_dataset.data
+        if self.exp in [2, 4, 5, 6]:
+            self.batch_size = 1
 
         train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=train_df, transform=augment, data=train_data, exp=self.exp)
         valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=test_df, transform=augment, data=test_data, exp=self.exp)
-
-        # scaler = preprocessing.StandardScaler()
-        # scaler.fit(data.reshape((data.shape[0], -1)))
-        # scaler.transform(data)
-
-        # train_list = random.sample(range(0, len(df.index)), int(.8 * len(df.index)))
-        # select = np.in1d(range(data.shape[0]), train_list)
-        # train_df = df[df.index.isin(train_list)]
-        # train_data = data[select]
-        # test_data = data[~select]
-        # test_df = df[~df.index.isin(train_list)]
-        if self.exp in [2, 4, 5, 6]:
-            self.batch_size = 1
-        # train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
-        #                                df=train_df, transform=augment, data=train_data, exp=self.exp)
-        # valid_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
-        #                                df=test_df, transform=augment, data=test_data, exp=self.exp)
 
         if self.model is not None:
             model = self.model
@@ -116,8 +95,9 @@ class ContrastiveLearner(object):
         fi.make_path(os.path.join(log_dir, 'checkpoints'))
         torch.save(model.state_dict(),
                    os.path.join(self.log_dir, 'encoder.pth'))
-        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs',datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
-        batch_counter=0
+        writer = SummaryWriter(
+            log_dir=os.path.join(log_dir, 'runs', datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
+        batch_counter = 0
         model.eval()
         train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
                                              encoder=model, data=train_data)
@@ -143,8 +123,6 @@ class ContrastiveLearner(object):
             start = time.time()
             epoch_loss = 0
             num_batches = len(train_loader)
-            print("Number of batches is:")
-            print(num_batches)
             if self.exp in [2, 4, 5, 6]:
                 for data in train_loader:
                     xis, xjs = [], []
@@ -181,14 +159,14 @@ class ContrastiveLearner(object):
                     loss.backward()
                     optimizer.step()
                     epoch_loss += loss
-                    writer.add_scalar('loss/pretrain',loss,batch_counter)
+                    writer.add_scalar('loss/pretrain', loss, batch_counter)
                     for i, layer in enumerate(model.children()):
                         for j, param in enumerate(layer.parameters()):
                             writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
                     # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
                     # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
 
-                    batch_counter+=1
+                    batch_counter += 1
             epoch_loss /= float(num_batches)
             # validate the model
             valid_loss = self._validate(model, valid_loader)
@@ -207,7 +185,8 @@ class ContrastiveLearner(object):
             train_y = np.asarray(train_y)
             test_X = np.asarray(test_X)
             test_y = np.asarray(test_y)
-            writer.add_embedding(test_X.reshape((test_X.shape[0],-1)), metadata=test_y.tolist(), global_step=epoch_counter)
+            writer.add_embedding(test_X.reshape((test_X.shape[0], -1)), metadata=test_y.tolist(),
+                                 global_step=epoch_counter)
 
             evaluator = KNeighborsClassifier(n_neighbors=10)
             evaluator.fit(train_X, train_y)
