@@ -809,11 +809,17 @@ class ContrastiveLearner(object):
                 val_pred = expit(val_pred)
                 val_accuracy = lo.get_accuracy(val_true, val_pred)
                 val_auc_score = roc_auc_score(val_true, val_pred)
+                print("Best dev AUC is" + str(best_dev_auc))
+                print("Val Accuracy is " + str(val_accuracy))
+                print("Val AUC Score is" + str(val_auc_score))
+
+
                 if best_dev_auc < val_auc_score:
                     lo.save_weights(model, os.path.join(log_dir,
                                                         "studentONLY_new_pretrain_distill_baseline_overfit_testing" + ".pt"))
                     best_dev_auc = val_auc_score
 
+                print("Updated best dev AUC is" + str(best_dev_auc))
                 writer.add_scalar('loss/val', val_loss, (epoch-1)*8 + i / 20 + 1)
 
                 writer.add_scalar('accuracy/val', val_accuracy, (epoch-1)*8 + i / 20 + 1)
