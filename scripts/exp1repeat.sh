@@ -48,13 +48,13 @@ cd ../models
 #  python contrastive.py --mode test --task heart --log_dir 3_16/supervised-large-full --data ../heart --evaluator fine-tune --model_num $i
 #done
 
-python contrastive.py --mode pretrain --task heart --log_dir 3_16/spec-pre-large --data ../heart --augment spec --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task heart --log_dir 3_16/split-pre-large --data ../heart --augment split --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task heart --log_dir 3_16/spec-split-pre-large --data ../heart --augment spec+split --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task heart --log_dir 3_16/time-pre-large --data ../heart --augment time --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task heart --log_dir 3_16/freq-pre-large --data ../heart --augment freq --train_prop 1.0 --epoch 10
-
-wait
+#python contrastive.py --mode pretrain --task heart --log_dir 3_16/spec-pre-large --data ../heart --augment spec --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task heart --log_dir 3_16/split-pre-large --data ../heart --augment split --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task heart --log_dir 3_16/spec-split-pre-large --data ../heart --augment spec+split --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task heart --log_dir 3_16/time-pre-large --data ../heart --augment time --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task heart --log_dir 3_16/freq-pre-large --data ../heart --augment freq --train_prop 1.0 --epoch 10
+#
+#wait
 #cd ../scripts
 #sbatch Exp4HC.sh &
 #sbatch Exp4Symp.sh &

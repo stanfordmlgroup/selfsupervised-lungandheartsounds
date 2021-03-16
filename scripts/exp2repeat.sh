@@ -47,13 +47,13 @@ cd ../models
 #  python contrastive.py --mode test --task disease --log_dir 3_16/supervised-large-full --data ../data --evaluator fine-tune --model_num $i
 #done
 
-python contrastive.py --mode pretrain --task disease --log_dir 3_16/spec-pre-large --data ../data --augment spec --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task disease --log_dir 3_16/split-pre-large --data ../data --augment split --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task disease --log_dir 3_16/spec-split-pre-large --data ../data --augment spec+split --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task disease --log_dir 3_16/time-pre-large --data ../data --augment time --train_prop 1.0 --epoch 10
-python contrastive.py --mode pretrain --task disease --log_dir 3_16/freq-pre-large --data ../data --augment freq --train_prop 1.0 --epoch 10
-
-wait
+#python contrastive.py --mode pretrain --task disease --log_dir 3_16/spec-pre-large --data ../data --augment spec --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task disease --log_dir 3_16/split-pre-large --data ../data --augment split --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task disease --log_dir 3_16/spec-split-pre-large --data ../data --augment spec+split --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task disease --log_dir 3_16/time-pre-large --data ../data --augment time --train_prop 1.0 --epoch 10
+#python contrastive.py --mode pretrain --task disease --log_dir 3_16/freq-pre-large --data ../data --augment freq --train_prop 1.0 --epoch 10
+#
+#wait
 
 for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
 do

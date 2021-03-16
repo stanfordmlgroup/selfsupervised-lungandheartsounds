@@ -178,6 +178,7 @@ class ContrastiveLearner(object):
                         optimizer.step()
                         epoch_loss += loss
                         writer.add_scalar('loss/pretrain', loss, batch_counter)
+                        batch_counter += 1
 
             else:
                 for xis, xjs in train_loader:
@@ -191,15 +192,15 @@ class ContrastiveLearner(object):
                     epoch_loss += loss
                     writer.add_scalar('loss/pretrain', loss, batch_counter)
 
-                # warmup for the first 10 epochs
-                # if epoch_counter > 10:
-                #     scheduler.step()
-                # for i, layer in enumerate(model.children()):
-                #     for j, param in enumerate(layer.parameters()):
-                #         writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
-                # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
-                # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
-                batch_counter += 1
+                    # warmup for the first 10 epochs
+                    # if epoch_counter > 10:
+                    #     scheduler.step()
+                    # for i, layer in enumerate(model.children()):
+                    #     for j, param in enumerate(layer.parameters()):
+                    #         writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
+                    # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
+                    # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
+                    batch_counter += 1
 
             epoch_loss /= float(batch_counter)
             # validate the model
@@ -402,7 +403,7 @@ class ContrastiveLearner(object):
                         test_roc_score = 0
 
                     if best_test_auc < test_roc_score:
-                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + "FINETUNE" + str(model_id) + ".pt"))
+                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
                         best_test_auc = test_roc_score
                         counter = 0
                     else:
