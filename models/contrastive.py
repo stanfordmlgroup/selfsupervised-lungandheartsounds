@@ -933,6 +933,8 @@ class ContrastiveLearner(object):
             counter = 0
             if self.exp in [2, 4, 5, 6]:
                 for data in valid_loader:
+                    if data == -1:
+                        continue
                     xis, xjs = [], []
                     for sample in data:
                         xis.append(sample[0])
@@ -946,7 +948,10 @@ class ContrastiveLearner(object):
                     loss = self._step(model, xis, xjs)
                     valid_loss += loss.item()
                     counter += 1
-                valid_loss /= counter
+                try:
+                    valid_loss /= counter
+                except:
+                    valid_loss = -1
             elif self.exp == 3:
                 for xis, xjs, y in valid_loader:
                     xis = xis.to(self.device)
