@@ -10,10 +10,6 @@
 #SBATCH --job-name="aihc lungheart exp 3 selfsuper"
 #SBATCH --output=out/exp3-selfsupervised-%j.out
 
-# only use the following if you want email notification
-#SBATCH --mail-user=prathams@stanford.edu
-#SBATCH --mail-type=ALL
-
 # list out some useful information (optional)
 echo "SLURM_JOBID="$SLURM_JOBID
 echo "SLURM_JOB_NODELIST"=$SLURM_JOB_NODELIST
@@ -29,8 +25,8 @@ cd ../models
 #python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo2-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 2
 #python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo3-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 3
 #python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo4-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 4
-python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo5-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 5
-python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo6-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 6
+#python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo5-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 5
+#python contrastive.py --mode pretrain --task demo --log_dir 3_16/demo6-pre-lung-large --data ../data --train_prop 1.0 --epoch 10 --exp 6
 
 for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
 do

@@ -1000,7 +1000,7 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
 
     num_epochs = epochs
     batch_size = 16
-    learning_rate = .000001
+    learning_rate = .00001
     if evaluator is not None:
         print("Evaluator: " + evaluator)
     with open(os.path.join(log_dir, "train_params.txt"), "w") as f:
