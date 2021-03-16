@@ -277,15 +277,15 @@ class ContrastiveLearner(object):
         model_id = len(glob(os.path.join(log_dir, "evaluator_*")))
 
         print("training model with id: {}".format(model_id))
-        #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
+        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        #pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
-        loss = BCEWithLogitsLoss().to(self.device)
-        #loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
+        #loss = BCEWithLogitsLoss().to(self.device)
+        loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
-        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', 'FINETUNE' + str(model_id)))
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', str(model_id)))
         valid_auc_counter = 0
         train_auc = 0
         test_auc = 0
@@ -366,7 +366,7 @@ class ContrastiveLearner(object):
 
                 counter = 0
                 best_test_loss = np.inf
-                best_test_auc = 0
+                #best_test_auc = 0
                 epoch = 0
                 counter = 0
                 for epoch in range(1, self.epochs + 1):
@@ -402,9 +402,9 @@ class ContrastiveLearner(object):
                     except:
                         test_roc_score = 0
 
-                    if best_test_auc < test_roc_score:
+                    if test_loss < best_test_loss:
                         lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
-                        best_test_auc = test_roc_score
+                        best_test_loss = test_loss
                         counter = 0
                     else:
                         counter += 1
