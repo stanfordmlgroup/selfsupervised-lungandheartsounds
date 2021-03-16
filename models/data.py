@@ -79,121 +79,86 @@ class LungDatasetExp3(Dataset):
 
         # Positive pairs are from the same locations in the lung. Negative pairs are from different patients in the same
         # or different locations.
-        if self.exp == 0:
-            cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
-            cycles = cycles.reset_index()
-            cycles_copy = copy.deepcopy(cycles)
-            num_cycle = len(cycles)
-            if num_cycle == 0:
-                raise Exception('must have at least one cycle')
-            elif num_cycle < 2:
-                first_ind = 0
-                second_ind = 0
-            else:
-                first_ind = random.randint(0, num_cycle - 1)
-                first_cycle_loc = cycles.at[first_ind, 'location']
-                # Find all cycles with the same location:
-                cycles_copy.drop([first_ind])
-                same_loc_list = cycles_copy[cycles_copy['location'] == first_cycle_loc]
-                if len(same_loc_list) > 0:
-                    second_ind = random.choice(same_loc_list.index)
-                # No other cycles in the same location:
-                else:
-                    if len(cycles_copy) > 0:
-                        second_ind = random.choice(cycles_copy.index)
-                    else:
-                        second_ind = first_ind  # Covered above but just in case
-
-            first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-            y = self.get_class_val(cycles.iloc[first_ind])
-            second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
-            first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
-            second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
-            return first_X, second_X
-
-        # Positive pairs are from different locations in the lung. Negative pairs are from different patients in the
-        # same or different locations
-        elif self.exp == 1:
-            cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
-            cycles = cycles.reset_index()
-            cycles_copy = copy.deepcopy(cycles)
-            num_cycle = len(cycles)
-            if num_cycle == 0:
-                raise Exception('must have at least one cycle')
-            elif num_cycle < 2:
-                first_ind = 0
-                second_ind = 0
-            else:
-                first_ind = random.randint(0, num_cycle - 1)
-                first_cycle_loc = cycles.at[first_ind, 'location']
-                # Find all cycles with the same location:
-                cycles_copy.drop([first_ind])
-                same_loc_list = cycles_copy[cycles_copy['location'] != first_cycle_loc]
-                if len(same_loc_list) > 0:
-                    second_ind = random.choice(same_loc_list.index)
-                # No other cycles in the same location:
-                else:
-                    if len(cycles_copy) > 0:
-                        second_ind = random.choice(cycles_copy.index)
-                    else:
-                        second_ind = first_ind  # Covered above but just in case
-
-            first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-            y = self.get_class_val(cycles.iloc[first_ind])
-            second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
-            first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
-            second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
-            return first_X, second_X
-
-        # Positive pairs are from the same locations in the lung. Negative pairs are from different patients in the
-        # same location
-        elif self.exp == 2:
-            pair_list = []
-            cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
-            cycles = cycles.reset_index()
-            cycles_copy = copy.deepcopy(cycles)
-            num_cycle = len(cycles)
-            if num_cycle == 0:
-                raise Exception('must have at least one cycle')
-            elif num_cycle < 2:
-                first_ind = 0
-                first_cycle_loc = cycles.at[first_ind, 'location']
-                second_ind = 0
-            else:
-                first_ind = random.randint(0, num_cycle - 1)
-                first_cycle_loc = cycles.at[first_ind, 'location']
-
-                # Find all cycles with the same location:
-                cycles_copy.drop([first_ind])
-                same_loc_list = cycles_copy[cycles_copy['location'] == first_cycle_loc]
-                if len(same_loc_list) > 0:
-                    second_ind = random.choice(same_loc_list.index)
-
-                # No other cycles in the same location: (just grab same one twice, don't want to risk diff loc)
-                else:
-                    second_ind = first_ind
-
-            first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-            y = self.get_class_val(cycles.iloc[first_ind])
-            second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
-
-            first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
-            second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
-            pair_list.append((first_X, second_X))
-
-            # Generate rest of the batch:
-            candidates = self.labels[self.labels['location'] == first_cycle_loc]
-            candidates = candidates[candidates['ID'] != id]
-            batch_patients = random.sample(list(candidates.ID.unique()), 15)
-            for pat_id in batch_patients:
-                cycles = candidates[candidates['ID'] == pat_id].drop(columns=['level_0'])
-                cycles = cycles.reset_index()  # Get all the cycles for this person
+        try :
+            if self.exp == 0:
+                cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
+                cycles = cycles.reset_index()
                 cycles_copy = copy.deepcopy(cycles)
                 num_cycle = len(cycles)
                 if num_cycle == 0:
                     raise Exception('must have at least one cycle')
-                if num_cycle < 2:
+                elif num_cycle < 2:
                     first_ind = 0
+                    second_ind = 0
+                else:
+                    first_ind = random.randint(0, num_cycle - 1)
+                    first_cycle_loc = cycles.at[first_ind, 'location']
+                    # Find all cycles with the same location:
+                    cycles_copy.drop([first_ind])
+                    same_loc_list = cycles_copy[cycles_copy['location'] == first_cycle_loc]
+                    if len(same_loc_list) > 0:
+                        second_ind = random.choice(same_loc_list.index)
+                    # No other cycles in the same location:
+                    else:
+                        if len(cycles_copy) > 0:
+                            second_ind = random.choice(cycles_copy.index)
+                        else:
+                            second_ind = first_ind  # Covered above but just in case
+
+                first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                y = self.get_class_val(cycles.iloc[first_ind])
+                second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+                first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
+                second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
+                return first_X, second_X
+
+            # Positive pairs are from different locations in the lung. Negative pairs are from different patients in the
+            # same or different locations
+            elif self.exp == 1:
+                cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
+                cycles = cycles.reset_index()
+                cycles_copy = copy.deepcopy(cycles)
+                num_cycle = len(cycles)
+                if num_cycle == 0:
+                    raise Exception('must have at least one cycle')
+                elif num_cycle < 2:
+                    first_ind = 0
+                    second_ind = 0
+                else:
+                    first_ind = random.randint(0, num_cycle - 1)
+                    first_cycle_loc = cycles.at[first_ind, 'location']
+                    # Find all cycles with the same location:
+                    cycles_copy.drop([first_ind])
+                    same_loc_list = cycles_copy[cycles_copy['location'] != first_cycle_loc]
+                    if len(same_loc_list) > 0:
+                        second_ind = random.choice(same_loc_list.index)
+                    # No other cycles in the same location:
+                    else:
+                        if len(cycles_copy) > 0:
+                            second_ind = random.choice(cycles_copy.index)
+                        else:
+                            second_ind = first_ind  # Covered above but just in case
+
+                first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                y = self.get_class_val(cycles.iloc[first_ind])
+                second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+                first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
+                second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
+                return first_X, second_X
+
+            # Positive pairs are from the same locations in the lung. Negative pairs are from different patients in the
+            # same location
+            elif self.exp == 2:
+                pair_list = []
+                cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
+                cycles = cycles.reset_index()
+                cycles_copy = copy.deepcopy(cycles)
+                num_cycle = len(cycles)
+                if num_cycle == 0:
+                    raise Exception('must have at least one cycle')
+                elif num_cycle < 2:
+                    first_ind = 0
+                    first_cycle_loc = cycles.at[first_ind, 'location']
                     second_ind = 0
                 else:
                     first_ind = random.randint(0, num_cycle - 1)
@@ -216,119 +181,51 @@ class LungDatasetExp3(Dataset):
                 first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
                 second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
                 pair_list.append((first_X, second_X))
-            return pair_list
 
-        # Positive pair = same age band (child-child, adult-adult), negative pair = different age bands (child-adult)
-        elif self.exp == 3:
-            curr_demo = self.demo[self.demo['pt_num'] == id]
-
-            # Choose two random cycles from this person:
-            cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
-            cycles = cycles.reset_index()
-            num_cycle = len(cycles)
-            if num_cycle == 0:
-                raise Exception('must have at least one cycle')
-            elif num_cycle < 2:
-                first_ind = 0
-                second_ind = 0
-            else:
-                poss = [num for num in range(num_cycle)]
-                sample_indexes = random.sample(poss, 2)
-                first_ind = sample_indexes[0]
-                second_ind = sample_indexes[1]
-
-            first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-            second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
-            if list(curr_demo.adult)[0]:  # Query format?
-                y_val = 0
-            else:
-                y_val = 1
-
-            first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
-            second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
-            return first_X, second_X, y_val
-
-        # Positive pair = same recording, negative pair = different recording w/ similar age (child vs. adult)
-        elif self.exp == 4:
-            curr_demo = self.demo[self.demo['pt_num'] == id]
-            if list(curr_demo.adult)[0]:
-                is_adult = True
-            else:
-                is_adult = False
-
-            pair_list = []  # (x1, x2, y) for 16
-            # Generate batch of 16 people (15 others) with same age
-            if is_adult:
-                sample_df = copy.deepcopy(self.only_adult)
-            else:
-                sample_df = copy.deepcopy(self.only_child)
-            sample_df = sample_df[sample_df.pt_num != id]
-            batch_demo = sample_df.sample(15)
-            # dummy y
-            y_val = 0
-
-            batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
-            batch_ids.add(id)
-            batch_ids = list(batch_ids)
-            for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
-                cycles = cycles.reset_index()
-                cycles_copy = copy.deepcopy(cycles)
-                num_cycle = len(cycles)
-                if num_cycle == 0:
-                    print(curr_id)
-                    raise Exception('must have at least one cycle')
-                elif num_cycle < 2:
-                    first_ind = 0
-                    second_ind = 0
-                else:
-                    first_ind = random.randint(0, num_cycle - 1)
-                    first_cycle_name = cycles.at[first_ind, 'cycle']
-                    first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
-                    # Find all cycles with the same location:
-                    cycles_copy.drop([first_ind])
-                    same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
-                    if len(same_loc_list) > 0:
-                        second_ind = random.choice(same_loc_list.index)
-                    # No other cycles in the same location:
+                # Generate rest of the batch:
+                candidates = self.labels[self.labels['location'] == first_cycle_loc]
+                candidates = candidates[candidates['ID'] != id]
+                batch_patients = random.sample(list(candidates.ID.unique()), 15)
+                for pat_id in batch_patients:
+                    cycles = candidates[candidates['ID'] == pat_id].drop(columns=['level_0'])
+                    cycles = cycles.reset_index()  # Get all the cycles for this person
+                    cycles_copy = copy.deepcopy(cycles)
+                    num_cycle = len(cycles)
+                    if num_cycle == 0:
+                        raise Exception('must have at least one cycle')
+                    if num_cycle < 2:
+                        first_ind = 0
+                        second_ind = 0
                     else:
-                        second_ind = first_ind  # Covered above but just in case
+                        first_ind = random.randint(0, num_cycle - 1)
+                        first_cycle_loc = cycles.at[first_ind, 'location']
 
-                first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-                second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+                        # Find all cycles with the same location:
+                        cycles_copy.drop([first_ind])
+                        same_loc_list = cycles_copy[cycles_copy['location'] == first_cycle_loc]
+                        if len(same_loc_list) > 0:
+                            second_ind = random.choice(same_loc_list.index)
 
-                first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
-                second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
+                        # No other cycles in the same location: (just grab same one twice, don't want to risk diff loc)
+                        else:
+                            second_ind = first_ind
 
-                pair_list.append((first_X, second_X))
-            return pair_list
+                    first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                    y = self.get_class_val(cycles.iloc[first_ind])
+                    second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
 
-        # Positive pair = same recording, negative pair = different recording w/ similar sex attributes
-        elif self.exp == 5:
-            curr_demo = self.demo[self.demo['pt_num'] == id]
-            if list(curr_demo.sex_female)[0] == 1:
-                is_female = True
-            else:
-                is_female = False
+                    first_X, y1 = process_data("train", self.transform, first_cycle, y, self.norm_func)
+                    second_X, y1 = process_data("train", self.transform, second_cycle, y, self.norm_func)
+                    pair_list.append((first_X, second_X))
+                return pair_list
 
-            pair_list = []  # (x1, x2, y) for 16
-            # Generate batch of 16 people (15 others) with same sex
-            if is_female:
-                sample_df = copy.deepcopy(self.only_female)
-            else:
-                sample_df = copy.deepcopy(self.only_male)
-            sample_df = sample_df[sample_df.pt_num != id]
-            batch_demo = sample_df.sample(15)
-            # dummy y
-            y_val = 0
+            # Positive pair = same age band (child-child, adult-adult), negative pair = different age bands (child-adult)
+            elif self.exp == 3:
+                curr_demo = self.demo[self.demo['pt_num'] == id]
 
-            batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
-            batch_ids.add(id)
-            batch_ids = list(batch_ids)
-            for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
+                # Choose two random cycles from this person:
+                cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
                 cycles = cycles.reset_index()
-                cycles_copy = copy.deepcopy(cycles)
                 num_cycle = len(cycles)
                 if num_cycle == 0:
                     raise Exception('must have at least one cycle')
@@ -336,96 +233,202 @@ class LungDatasetExp3(Dataset):
                     first_ind = 0
                     second_ind = 0
                 else:
-                    first_ind = random.randint(0, num_cycle - 1)
-                    first_cycle_name = cycles.at[first_ind, 'cycle']
-                    first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
-                    # Find all cycles with the same location:
-                    cycles_copy.drop([first_ind])
-                    same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
-                    if len(same_loc_list) > 0:
-                        second_ind = random.choice(same_loc_list.index)
-                    # No other cycles in the same location:
-                    else:
-                        second_ind = first_ind  # Covered above but just in case
+                    poss = [num for num in range(num_cycle)]
+                    sample_indexes = random.sample(poss, 2)
+                    first_ind = sample_indexes[0]
+                    second_ind = sample_indexes[1]
 
                 first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
                 second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+                if list(curr_demo.adult)[0]:  # Query format?
+                    y_val = 0
+                else:
+                    y_val = 1
 
                 first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
                 second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
+                return first_X, second_X, y_val
 
-                pair_list.append((first_X, second_X))
-            return pair_list
-
-        # Positive pair = same recording, negative pair = different recording w/ similar age & sex attributes
-        elif self.exp == 6:
-            curr_demo = self.demo[self.demo['pt_num'] == id]
-
-            if list(curr_demo.sex_female)[0] == 1:
-                is_female = True
-            else:
-                is_female = False
-
-            if list(curr_demo.adult)[0]:
-                is_adult = True
-            else:
-                is_adult = False
-
-            pair_list = []  # (x1, x2, y) for 16
-            y_val = 0
-            # Generate batch of 16 people (15 others) with same age
-            if is_female:
-                if is_adult:
-                    sample_df = copy.deepcopy(self.only_female_adult)
+            # Positive pair = same recording, negative pair = different recording w/ similar age (child vs. adult)
+            elif self.exp == 4:
+                curr_demo = self.demo[self.demo['pt_num'] == id]
+                if list(curr_demo.adult)[0]:
+                    is_adult = True
                 else:
-                    sample_df = copy.deepcopy(self.only_female_child)
-            else:
+                    is_adult = False
+
+                pair_list = []  # (x1, x2, y) for 16
+                # Generate batch of 16 people (15 others) with same age
                 if is_adult:
-                    sample_df = copy.deepcopy(self.only_male_adult)
+                    sample_df = copy.deepcopy(self.only_adult)
                 else:
-                    sample_df = copy.deepcopy(self.only_male_child)
-            sample_df = sample_df[sample_df.pt_num != id]
-            try:
+                    sample_df = copy.deepcopy(self.only_child)
+                sample_df = sample_df[sample_df.pt_num != id]
                 batch_demo = sample_df.sample(15)
-            except:
-                batch_demo = sample_df.sample(7)
-            # dummy y
-            y_val = 0
+                # dummy y
+                y_val = 0
 
-            batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
-            batch_ids.add(id)
-            batch_ids = list(batch_ids)
-            for curr_id in batch_ids:
-                cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
-                cycles = cycles.reset_index()
-                cycles_copy = copy.deepcopy(cycles)
-                num_cycle = len(cycles)
-                if num_cycle == 0:
-                    raise Exception('must have at least one cycle')
-                elif num_cycle < 2:
-                    first_ind = 0
-                    second_ind = 0
-                else:
-                    first_ind = random.randint(0, num_cycle - 1)
-                    first_cycle_name = cycles.at[first_ind, 'cycle']
-                    first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
-                    # Find all cycles with the same location:
-                    cycles_copy.drop([first_ind])
-                    same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
-                    if len(same_loc_list) > 0:
-                        second_ind = random.choice(same_loc_list.index)
-                    # No other cycles in the same location:
+                batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
+                batch_ids.add(id)
+                batch_ids = list(batch_ids)
+                for curr_id in batch_ids:
+                    cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
+                    cycles = cycles.reset_index()
+                    cycles_copy = copy.deepcopy(cycles)
+                    num_cycle = len(cycles)
+                    if num_cycle == 0:
+                        print(curr_id)
+                        raise Exception('must have at least one cycle')
+                    elif num_cycle < 2:
+                        first_ind = 0
+                        second_ind = 0
                     else:
-                        second_ind = first_ind  # Covered above but just in case
+                        first_ind = random.randint(0, num_cycle - 1)
+                        first_cycle_name = cycles.at[first_ind, 'cycle']
+                        first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
+                        # Find all cycles with the same location:
+                        cycles_copy.drop([first_ind])
+                        same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
+                        if len(same_loc_list) > 0:
+                            second_ind = random.choice(same_loc_list.index)
+                        # No other cycles in the same location:
+                        else:
+                            second_ind = first_ind  # Covered above but just in case
 
-                first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
-                second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+                    first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                    second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
 
-                first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
-                second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
+                    first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                    second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
 
-                pair_list.append((first_X, second_X))
-            return pair_list
+                    pair_list.append((first_X, second_X))
+                return pair_list
+
+            # Positive pair = same recording, negative pair = different recording w/ similar sex attributes
+            elif self.exp == 5:
+                curr_demo = self.demo[self.demo['pt_num'] == id]
+                if list(curr_demo.sex_female)[0] == 1:
+                    is_female = True
+                else:
+                    is_female = False
+
+                pair_list = []  # (x1, x2, y) for 16
+                # Generate batch of 16 people (15 others) with same sex
+                if is_female:
+                    sample_df = copy.deepcopy(self.only_female)
+                else:
+                    sample_df = copy.deepcopy(self.only_male)
+                sample_df = sample_df[sample_df.pt_num != id]
+                batch_demo = sample_df.sample(15)
+                # dummy y
+                y_val = 0
+
+                batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
+                batch_ids.add(id)
+                batch_ids = list(batch_ids)
+                for curr_id in batch_ids:
+                    cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
+                    cycles = cycles.reset_index()
+                    cycles_copy = copy.deepcopy(cycles)
+                    num_cycle = len(cycles)
+                    if num_cycle == 0:
+                        raise Exception('must have at least one cycle')
+                    elif num_cycle < 2:
+                        first_ind = 0
+                        second_ind = 0
+                    else:
+                        first_ind = random.randint(0, num_cycle - 1)
+                        first_cycle_name = cycles.at[first_ind, 'cycle']
+                        first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
+                        # Find all cycles with the same location:
+                        cycles_copy.drop([first_ind])
+                        same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
+                        if len(same_loc_list) > 0:
+                            second_ind = random.choice(same_loc_list.index)
+                        # No other cycles in the same location:
+                        else:
+                            second_ind = first_ind  # Covered above but just in case
+
+                    first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                    second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+
+                    first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                    second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
+
+                    pair_list.append((first_X, second_X))
+                return pair_list
+
+            # Positive pair = same recording, negative pair = different recording w/ similar age & sex attributes
+            elif self.exp == 6:
+                curr_demo = self.demo[self.demo['pt_num'] == id]
+
+                if list(curr_demo.sex_female)[0] == 1:
+                    is_female = True
+                else:
+                    is_female = False
+
+                if list(curr_demo.adult)[0]:
+                    is_adult = True
+                else:
+                    is_adult = False
+
+                pair_list = []  # (x1, x2, y) for 16
+                y_val = 0
+                # Generate batch of 16 people (15 others) with same age
+                if is_female:
+                    if is_adult:
+                        sample_df = copy.deepcopy(self.only_female_adult)
+                    else:
+                        sample_df = copy.deepcopy(self.only_female_child)
+                else:
+                    if is_adult:
+                        sample_df = copy.deepcopy(self.only_male_adult)
+                    else:
+                        sample_df = copy.deepcopy(self.only_male_child)
+                sample_df = sample_df[sample_df.pt_num != id]
+                try:
+                    batch_demo = sample_df.sample(15)
+                except:
+                    batch_demo = sample_df.sample(7)
+                # dummy y
+                y_val = 0
+
+                batch_ids = set(list(batch_demo.pt_num))  # Query format? (Want to get all the pt_nums)
+                batch_ids.add(id)
+                batch_ids = list(batch_ids)
+                for curr_id in batch_ids:
+                    cycles = self.labels[self.labels['ID'] == curr_id].drop(columns=['level_0'])
+                    cycles = cycles.reset_index()
+                    cycles_copy = copy.deepcopy(cycles)
+                    num_cycle = len(cycles)
+                    if num_cycle == 0:
+                        raise Exception('must have at least one cycle')
+                    elif num_cycle < 2:
+                        first_ind = 0
+                        second_ind = 0
+                    else:
+                        first_ind = random.randint(0, num_cycle - 1)
+                        first_cycle_name = cycles.at[first_ind, 'cycle']
+                        first_cycle_name = first_cycle_name[:first_cycle_name.rfind('_')]
+                        # Find all cycles with the same location:
+                        cycles_copy.drop([first_ind])
+                        same_loc_list = cycles_copy[cycles_copy['cycle'].str.contains(first_cycle_name)]
+                        if len(same_loc_list) > 0:
+                            second_ind = random.choice(same_loc_list.index)
+                        # No other cycles in the same location:
+                        else:
+                            second_ind = first_ind  # Covered above but just in case
+
+                    first_cycle = self.data[int(cycles.at[first_ind, 'index'])]
+                    second_cycle = self.data[int(cycles.at[second_ind, 'index'])]
+
+                    first_X, y1 = process_data("train", self.transform, first_cycle, y_val, self.norm_func)
+                    second_X, y1 = process_data("train", self.transform, second_cycle, y_val, self.norm_func)
+
+                    pair_list.append((first_X, second_X))
+                return pair_list
+        except:
+            return -1
 
     def get_class_val(self, row):
         if self.task == "demo":

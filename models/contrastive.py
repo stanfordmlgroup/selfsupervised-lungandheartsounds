@@ -73,8 +73,10 @@ class ContrastiveLearner(object):
         test_df = test_dataset.labels.reset_index()
         test_data = test_dataset.data
 
+        self.batch_size = min(self.batch_size, train_data.shape[0])
         if self.exp in [2, 4, 5, 6]:
             self.batch_size = 1
+        print('Batch Size: {}'.format(self.batch_size))
 
         train_loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="pretrain",
                                        df=train_df, transform=augment, data=train_data, exp=self.exp)
@@ -87,16 +89,18 @@ class ContrastiveLearner(object):
             model = self.get_model(out_dim=256, restore=restore)
 
         optimizer = torch.optim.Adam(model.parameters(), learning_rate, weight_decay=1e-6)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader), eta_min=0,
-                                                               last_epoch=-1)
+        # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=len(train_loader), eta_min=0,
+                                                               #last_epoch=-1)
 
         best_valid_loss = np.inf
         best_auc = np.inf
         fi.make_path(os.path.join(log_dir, 'checkpoints'))
         torch.save(model.state_dict(),
                    os.path.join(self.log_dir, 'encoder.pth'))
+        tb_dir = os.path.join(log_dir, 'runs', datetime.datetime.now().strftime("%m-%d-%H-%M-%S"))
+        print("tensorboard_dir: {}".format(tb_dir))
         writer = SummaryWriter(
-            log_dir=os.path.join(log_dir, 'runs', datetime.datetime.now().strftime("%m-%d-%H-%M-%S")))
+            log_dir=tb_dir)
         batch_counter = 0
         model.eval()
         train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
@@ -109,7 +113,7 @@ class ContrastiveLearner(object):
         test_y = np.asarray(test_y)
         writer.add_embedding(test_X.reshape((test_X.shape[0], -1)), metadata=test_y.tolist(), global_step=0)
 
-        evaluator = KNeighborsClassifier(n_neighbors=10)
+        evaluator = KNeighborsClassifier(n_neighbors=10,weights='distance')
         evaluator.fit(train_X, train_y)
 
         try:
@@ -117,38 +121,64 @@ class ContrastiveLearner(object):
         except:
             roc_score = 0
         writer.add_scalar('auc/pretrain', roc_score, 0)
+        print(
+            "pretrain KNN Acc: {:.3f}\n".format(roc_score))
+        with open(log_file, "a+") as log:
+            log.write("\t\tpretrain KNN Acc: {:.3f}\n".format(roc_score))
         model.train()
 
         for epoch_counter in range(1, self.epochs + 1):
             start = time.time()
             epoch_loss = 0
-            num_batches = len(train_loader)
             if self.exp in [2, 4, 5, 6]:
-                for data in train_loader:
-                    xis, xjs = [], []
-                    for sample in data:
-                        xis.append(sample[0])
-                        xjs.append(sample[1])
-                    xis = torch.stack(tuple(xis))
-                    xis = xis.view(xis.shape[0], xis.shape[2], xis.shape[3])
-                    xjs = torch.stack(tuple(xjs))
-                    xjs = xjs.view(xjs.shape[0], xjs.shape[2], xjs.shape[3])
-                    xis = xis.to(self.device)
-                    xjs = xjs.to(self.device)
-                    loss = self._step(model, xis, xjs)
-                    loss.backward()
-                    optimizer.step()
-                    epoch_loss += loss
-            elif self.exp == 3:
-                for xis, xjs, y in train_loader:
-                    optimizer.zero_grad()
-                    xis = xis.to(self.device)
-                    xjs = xjs.to(self.device)
+                for i in range(4):
+                    for data in train_loader:
+                        if data == -1:
+                            continue
+                        xis, xjs = [], []
+                        for sample in data:
+                            xis.append(sample[0])
+                            xjs.append(sample[1])
+                        xis = torch.stack(tuple(xis))
+                        xis = xis.view(xis.shape[0], xis.shape[2], xis.shape[3])
+                        xjs = torch.stack(tuple(xjs))
+                        xjs = xjs.view(xjs.shape[0], xjs.shape[2], xjs.shape[3])
+                        xis = xis.to(self.device)
+                        xjs = xjs.to(self.device)
+                        loss = self._step(model, xis, xjs)
+                        writer.add_scalar('loss/pretrain', loss, batch_counter)
+                        loss.backward()
+                        optimizer.step()
+                        epoch_loss += loss
+                        batch_counter += 1
 
-                    loss = self._step(model, xis, xjs, y)
-                    loss.backward()
-                    optimizer.step()
-                    epoch_loss += loss
+            elif self.exp == 3:
+                for i in range(90):
+                    for xis, xjs, y in train_loader:
+                        optimizer.zero_grad()
+                        xis = xis.to(self.device)
+                        xjs = xjs.to(self.device)
+
+                        loss = self._step(model, xis, xjs, y)
+                        writer.add_scalar('loss/pretrain', loss, batch_counter)
+                        loss.backward()
+                        optimizer.step()
+                        epoch_loss += loss
+                        batch_counter += 1
+
+            elif self.exp in [0, 1]:
+                for i in range(90):
+                    for xis, xjs in train_loader:
+                        optimizer.zero_grad()
+                        xis = xis.to(self.device)
+                        xjs = xjs.to(self.device)
+
+                        loss = self._step(model, xis, xjs)
+                        loss.backward()
+                        optimizer.step()
+                        epoch_loss += loss
+                        writer.add_scalar('loss/pretrain', loss, batch_counter)
+
             else:
                 for xis, xjs in train_loader:
                     optimizer.zero_grad()
@@ -160,14 +190,18 @@ class ContrastiveLearner(object):
                     optimizer.step()
                     epoch_loss += loss
                     writer.add_scalar('loss/pretrain', loss, batch_counter)
-                    for i, layer in enumerate(model.children()):
-                        for j, param in enumerate(layer.parameters()):
-                            writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
-                    # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
-                    # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
 
-                    batch_counter += 1
-            epoch_loss /= float(num_batches)
+                # warmup for the first 10 epochs
+                # if epoch_counter > 10:
+                #     scheduler.step()
+                # for i, layer in enumerate(model.children()):
+                #     for j, param in enumerate(layer.parameters()):
+                #         writer.add_histogram('param_{}_{}'.format(i, j), param, batch_counter)
+                # writer.add_images('xi', torch.unsqueeze(xis, -3), batch_counter)
+                # writer.add_images('xj', torch.unsqueeze(xjs, -3), batch_counter)
+                batch_counter += 1
+
+            epoch_loss /= float(batch_counter)
             # validate the model
             valid_loss = self._validate(model, valid_loader)
             if valid_loss < best_valid_loss:
@@ -175,6 +209,9 @@ class ContrastiveLearner(object):
                 best_valid_loss = valid_loss
                 torch.save(model.state_dict(),
                            os.path.join(self.log_dir, 'checkpoints', 'encoder_{}.pth'.format(epoch_counter)))
+
+
+            writer.add_embedding(test_X.reshape((test_X.shape[0], -1)), metadata=test_y.tolist(), global_step=epoch_counter)
 
             model.eval()
             train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", df=train_df,
@@ -185,10 +222,7 @@ class ContrastiveLearner(object):
             train_y = np.asarray(train_y)
             test_X = np.asarray(test_X)
             test_y = np.asarray(test_y)
-            writer.add_embedding(test_X.reshape((test_X.shape[0], -1)), metadata=test_y.tolist(),
-                                 global_step=epoch_counter)
-
-            evaluator = KNeighborsClassifier(n_neighbors=10)
+            evaluator = KNeighborsClassifier(n_neighbors=10, weights='distance')
             evaluator.fit(train_X, train_y)
 
             try:
@@ -214,18 +248,16 @@ class ContrastiveLearner(object):
                     )
                 )
             print(
-                "pretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
+                "\t\tpretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
             with open(log_file, "a+") as log:
                 log.write("\t\tpretrain KNN Acc: {:.3f}\t KNN AUC: {:.3f}\n".format(fold_train_acc, roc_score))
 
-            # warmup for the first 10 epochs
-            if epoch_counter >= 10:
-                scheduler.step()
-            cosine_lr_decay = scheduler.get_lr()[0]
-            print("\t\tcosine lr decay: {:.10f}".format(cosine_lr_decay))
-            with open(log_file, "a+") as log:
-                log.write("\tcosine lr decay: {:.10f}\n".format(cosine_lr_decay))
-            # if counter > 10:
+
+            # cosine_lr_decay = scheduler.get_lr()[0]
+            # print("\t\tcosine lr decay: {:.10f}".format(cosine_lr_decay))
+            # with open(log_file, "a+") as log:
+            #     log.write("\tcosine lr decay: {:.10f}\n".format(cosine_lr_decay))
+            # # if counter > 10:
             #     print("Early stop...")
             #     break
 
@@ -280,7 +312,7 @@ class ContrastiveLearner(object):
                 _, X, y = get_scikit_loader(self.device, task, label_file, base_dir, "test", encoder=encoder)
                 # optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
                 #                            lr=10 * learning_rate)
-                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
+                optimizer = torch.optim.Adam(model.parameters(), lr=10*learning_rate, weight_decay=1e-4)
                 counter = 0
                 best_test_loss = np.inf
                 epoch = 0
@@ -890,9 +922,9 @@ class ContrastiveLearner(object):
         # get the representations and the projections
         zjs = model(xjs)  # [N,C]
         # normalize projection feature vectors
-        zis = F.normalize(zis, dim=1)
-        zjs = F.normalize(zjs, dim=1)
-        inputs = torch.cat((zis, zjs)).view(zis.shape[0], 2, -1)
+        zis = F.normalize(zis, dim=1).unsqueeze(1)
+        zjs = F.normalize(zjs, dim=1).unsqueeze(1)
+        inputs = torch.cat((zis, zjs), dim=1) # shape = [batch_size, 2, encode_dim]
         loss = self.nt_xent_criterion(inputs, labels=y)
         return loss
 
