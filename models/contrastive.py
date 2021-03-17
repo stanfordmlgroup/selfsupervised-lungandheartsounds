@@ -274,7 +274,10 @@ class ContrastiveLearner(object):
         print('Batch Size: {}'.format(self.batch_size))
         test_dataset = get_dataset(task, label_file, base_dir, split="val")
 
-        model_id = model_num
+        if model_num == 0:
+            model_id = len(glob(os.path.join(log_dir, "evaluator_*")))
+        else:
+            model_id = model_num
 
         print("training model with id: {}".format(model_id))
         weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
