@@ -677,7 +677,7 @@ class ContrastiveLearner(object):
                 encoder = self.get_model(256)
                 teacher = SSL(encoder)
                 teacher.load_state_dict(state_dict)
-                teacher.eval()
+                teacher.to(self.device).eval()
 
                 ce, y_true, y_pred = self._test(teacher, loader, self.device, loss, log_file)
                 _y_pred.append(expit(y_pred))
