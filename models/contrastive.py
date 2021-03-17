@@ -277,15 +277,15 @@ class ContrastiveLearner(object):
         model_id = model_num
 
         print("training model with id: {}".format(model_id))
-        #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
+        weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
         # weights = 1.0 / weights
         # weights = weights / weights.sum()
-        #pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
-        loss = BCEWithLogitsLoss().to(self.device)
-        #loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
+        pos_weight = torch.tensor(weights[0].item() / weights[1].item()).to(self.device)
+        #loss = BCEWithLogitsLoss().to(self.device)
+        loss = BCEWithLogitsLoss(pos_weight=pos_weight).to(self.device)
         # pos_weight = torch.tensor(weights[1].item() / (weights[0].item() + weights[1].item())).to(self.device)
         # loss = WeightedFocalLoss(alpha=pos_weight).to(self.device)
-        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', 'FINETUNE' + str(model_id)))
+        writer = SummaryWriter(log_dir=os.path.join(log_dir, 'runs', str(model_id)))
         valid_auc_counter = 0
         train_auc = 0
         test_auc = 0
@@ -366,7 +366,7 @@ class ContrastiveLearner(object):
 
                 counter = 0
                 best_test_loss = np.inf
-                best_test_auc = 0
+                #best_test_auc = 0
                 epoch = 0
                 counter = 0
                 for epoch in range(1, self.epochs + 1):
@@ -402,9 +402,9 @@ class ContrastiveLearner(object):
                     except:
                         test_roc_score = 0
 
-                    if best_test_auc < test_roc_score:
+                    if test_loss < best_test_loss:
                         lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
-                        best_test_auc = test_roc_score
+                        best_test_loss = test_loss
                         counter = 0
                     else:
                         counter += 1
@@ -521,7 +521,7 @@ class ContrastiveLearner(object):
     def distill(self, n_splits, task, label_file, log_file, augment=None, teacher=None, evaluator_type=None,
                 learning_rate=0.0):
 
-        #Pretrain total df and data
+        # Pretrain total df and data
         df = self.dataset.labels
         data = self.dataset.data
 
@@ -531,8 +531,8 @@ class ContrastiveLearner(object):
             pretrain_only_IDs = set([line.strip() for line in pretrain_only_list])
         train_df = df[df.ID.isin(pretrain_only_IDs)]
         train_data = data.take(train_df.index.tolist(), axis=0)
-        #train_df = df
-        #train_data = data
+        # train_df = df
+        # train_data = data
 
         val_dataset = get_dataset(task, label_file, base_dir, split="val")
         val_df = val_dataset.labels
@@ -540,15 +540,15 @@ class ContrastiveLearner(object):
         print('Batch Size: {}'.format(self.batch_size))
         if evaluator_type == 'cnn':
             model = CNN(task, 1).to(self.device)
-            #Include option for loading a model:
-            #Put model in eval mode and use model.load_state_dict()
+            # Include option for loading a model:
+            # Put model in eval mode and use model.load_state_dict()
         elif evaluator_type == 'cnn-light':
             model = CNNlight(task, 1).to(self.device)
         elif evaluator_type == 'distill-cnn':
             model = DistillCNN(task, 1).to(self.device)
 
         train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                        data=train_data) #Put in train mode to get X and y from pretrain data
+                                       data=train_data)  # Put in train mode to get X and y from pretrain data
         val_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=val_df, data=val_data)
         loss = BCEWithLogitsLoss().to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -591,9 +591,12 @@ class ContrastiveLearner(object):
 
             print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
             print("\t\tTrain Loss: {:.7f}\tVal Loss: {:.7f}".format(train_loss, val_loss))
-            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTrain AUC: {:.7f}\tVal AUC: {:.7f}\n".format(train_accuracy, val_accuracy,
-                                                                                 train_auc_score, val_auc_score))
-            print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params, num_teacher_params))
+            print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tTrain AUC: {:.7f}\tVal AUC: {:.7f}\n".format(train_accuracy,
+                                                                                                        val_accuracy,
+                                                                                                        train_auc_score,
+                                                                                                        val_auc_score))
+            print("\t\tNumber of student params: {:.7f}\tNumber of teacher params: {:.7f}".format(num_student_params,
+                                                                                                  num_teacher_params))
 
             # Prints for teacher:
             # print("Teacher results: (Should be same b/t iterations)")
@@ -638,7 +641,7 @@ class ContrastiveLearner(object):
         # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
-        distill_eval = len(glob(os.path.join(evaluator_dir, "student.pt"))) > 0
+        distill_eval = len(glob(os.path.join(evaluator_dir, "student_*.pt"))) > 0
 
         with open(log_file, "a+") as out:
             if scikit_eval:
@@ -660,10 +663,29 @@ class ContrastiveLearner(object):
                     # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
 
             elif distill_eval:
-                # TODO: Figure out how similar this should be to the running above
-                print('Distill Test')
                 encoder.eval()
-                pass
+                print('Distill Testing')
+                model_weights = os.path.join(evaluator_dir, "studentONLY_new_pretrain_distill_baseline.pt")
+                loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
+                                         data=data)
+                model = DistillCNN(task, 1).to(self.device)
+                state_dict = torch.load(model_weights)
+                model.load_state_dict(state_dict)
+                model.eval()
+
+                # state_dict = torch.load(os.path.join(log_dir, 'evaluator_FINETUNE2.pt'))
+                # encoder = self.get_model(256)
+                # teacher = SSL(encoder)
+                # teacher.load_state_dict(state_dict)
+                # teacher.to(self.device).eval()
+                # ce, y_true, y_pred = self._test(teacher, loader, self.device, loss, log_file)
+
+                ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+
+                _y_pred.append(expit(y_pred))
+
+                print("Model {} Test BCE: {:.7f}".format(1, ce))
+                out.write("Model {} Test BCE: {:.7f}\n".format(1, ce))
 
             else:
                 model_weights = os.path.join(evaluator_dir, "evaluator_{}.pt".format(model_num))
@@ -778,22 +800,22 @@ class ContrastiveLearner(object):
             print("Iteration number: " + str(i))
 
             target_y = teacher(X)
-            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1)) #Logit values
-            #print("target_y is:")
-            #print(target_y_reshaped)
+            target_y_reshaped = torch.reshape(target_y, (target_y.shape[0], 1))  # Logit values
+            # print("target_y is:")
+            # print(target_y_reshaped)
 
             target_probs = expit(target_y_reshaped.cpu().detach().numpy())
             target_probs_tensor = torch.from_numpy(target_probs).to(self.device)
-            #print("Teacher Prediction is:")
-            #print(target_probs_tensor)
+            # print("Teacher Prediction is:")
+            # print(target_probs_tensor)
 
             student_y = model(X)
-            #print("student_y is:")
-            #print(student_y)
+            # print("student_y is:")
+            # print(student_y)
             student_probs = expit(student_y.cpu().detach().numpy())
             student_probs_tensor = torch.from_numpy(student_probs)
-            #print("Student Prediction is:")
-            #print(student_probs_tensor)
+            # print("Student Prediction is:")
+            # print(student_probs_tensor)
 
             if i % 20 == 0:
                 print("target_y is:")
@@ -807,27 +829,27 @@ class ContrastiveLearner(object):
                 print("Actual y values are:")
                 print(y)
 
-            #Calculate the loss:
+            # Calculate the loss:
             optimizer.zero_grad()
             train_loss = loss(student_y, target_probs_tensor)
-            #train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
-            #print("Iteration loss is:")
-            #print(train_loss)
+            # train_loss = add_kd_loss(student_y, target_y_reshaped, .1)
+            # print("Iteration loss is:")
+            # print(train_loss)
 
-            #Put the actual predictions in y_pred:
+            # Put the actual predictions in y_pred:
             y_true.extend(y.tolist())
             y_pred.extend(student_y.tolist())
-            #print(y_true)
-            #print(y_pred)
+            # print(y_true)
+            # print(y_pred)
 
-            #Backprop:
+            # Backprop:
             train_loss = train_loss.cuda()
             train_loss.backward()
             optimizer.step()
 
-        #print("Loop finished successfully")
+        # print("Loop finished successfully")
         ce = loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1))
-        #ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
+        # ce = add_kd_loss(torch.tensor(y_pred).to(device).float().view(-1), torch.tensor(y_true).to(device).float().view(-1), .1)
         return ce, y_true, y_pred
 
     def _optimize(self, model, X, y, optimizer, device, loss):
