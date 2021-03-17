@@ -70,7 +70,7 @@ cd ../models
 #	python contrastive.py --mode test --task heart --log_dir 3_16/spec-split-pre-large --data ../heart --evaluator fine-tune --model_num $i
 #	python contrastive.py --mode train --task heart --log_dir 3_16/time-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25 --model_num $i
 #	python contrastive.py --mode test --task heart --log_dir 3_16/time-pre-large --data ../heart --evaluator fine-tune --model_num $i
-#  python contrastive.py --mode train --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25 --model_num $i
+# python contrastive.py --mode train --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator fine-tune --train_prop .1 --epoch 25 --model_num $i
 #	python contrastive.py --mode test --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator fine-tune --model_num $i
 #done
 #for i in 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39
@@ -81,9 +81,9 @@ cd ../models
 #	python contrastive.py --mode test --task heart --log_dir 3_16/split-pre-large --data ../heart --evaluator linear --model_num $i
 #	python contrastive.py --mode train --task heart --log_dir 3_16/spec-split-pre-large --data ../heart --evaluator linear --train_prop .1 --epoch 5000 --model_num $i
 #	python contrastive.py --mode test --task heart --log_dir 3_16/spec-split-pre-large --data ../heart --evaluator linear --model_num $i
-#  python contrastive.py --mode train --task heart --log_dir 3_16/time-pre-large --data ../heart --evaluator linear --train_prop .1 --epoch 5000 --model_num $i
+# python contrastive.py --mode train --task heart --log_dir 3_16/time-pre-large --data ../heart --evaluator linear --train_prop .1 --epoch 5000 --model_num $i
 #	python contrastive.py --mode test --task heart --log_dir 3_16/time-pre-large --data ../heart --evaluator linear --model_num $i
-#  python contrastive.py --mode train --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator linear --train_prop .1 --epoch 5000 --model_num $i
+# python contrastive.py --mode train --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator linear --train_prop .1 --epoch 5000 --model_num $i
 #	python contrastive.py --mode test --task heart --log_dir 3_16/freq-pre-large --data ../heart --evaluator linear --model_num $i
 #
 #done
