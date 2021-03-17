@@ -641,7 +641,7 @@ class ContrastiveLearner(object):
         # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
-        distill_eval = len(glob(os.path.join(evaluator_dir, "evaluator_FINETUNE2.pt"))) > 0
+        distill_eval = len(glob(os.path.join(evaluator_dir, "student_*.pt"))) > 0
 
         with open(log_file, "a+") as out:
             if scikit_eval:
@@ -663,23 +663,25 @@ class ContrastiveLearner(object):
                     # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
 
             elif distill_eval:
-                #encoder.eval()
+                encoder.eval()
                 print('Distill Testing')
                 model_weights = os.path.join(evaluator_dir, "studentONLY_new_pretrain_distill_baseline.pt")
                 loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
                                          data=data)
-                # model = DistillCNN(task, 1).to(self.device)
-                # state_dict = torch.load(model_weights)
-                # model.load_state_dict(state_dict)
-                # model.eval()
+                model = DistillCNN(task, 1).to(self.device)
+                state_dict = torch.load(model_weights)
+                model.load_state_dict(state_dict)
+                model.eval()
 
-                state_dict = torch.load(os.path.join(log_dir, 'evaluator_FINETUNE2.pt'))
-                encoder = self.get_model(256)
-                teacher = SSL(encoder)
-                teacher.load_state_dict(state_dict)
-                teacher.to(self.device).eval()
+                # state_dict = torch.load(os.path.join(log_dir, 'evaluator_FINETUNE2.pt'))
+                # encoder = self.get_model(256)
+                # teacher = SSL(encoder)
+                # teacher.load_state_dict(state_dict)
+                # teacher.to(self.device).eval()
+                # ce, y_true, y_pred = self._test(teacher, loader, self.device, loss, log_file)
 
-                ce, y_true, y_pred = self._test(teacher, loader, self.device, loss, log_file)
+                ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+
                 _y_pred.append(expit(y_pred))
 
                 print("Model {} Test BCE: {:.7f}".format(1, ce))
