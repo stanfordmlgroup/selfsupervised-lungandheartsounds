@@ -641,7 +641,7 @@ class ContrastiveLearner(object):
         # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
-        distill_eval = len(glob(os.path.join(evaluator_dir, "student.pt"))) > 0
+        distill_eval = len(glob(os.path.join(evaluator_dir, "student_pretrain_distill_with_new_teacher_15.pt"))) > 0
 
         with open(log_file, "a+") as out:
             if scikit_eval:
@@ -663,9 +663,20 @@ class ContrastiveLearner(object):
                     # out.write("Model {} Test BCE: {:.7f}\n".format(i, ce))
 
             elif distill_eval:
-                print('Distill Test')
                 encoder.eval()
-                pass
+                print('Distill Testing')
+                model_weights = os.path.join(evaluator_dir, "student_pretrain_distill_with_new_teacher_15.pt")
+                loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
+                                         data=data)
+                model = DistillCNN(task, 1).to(self.device)
+                state_dict = torch.load(model_weights)
+                model.load_state_dict(state_dict)
+                model.eval()
+                ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
+                _y_pred.append(expit(y_pred))
+
+                print("Model {} Test BCE: {:.7f}".format(1, ce))
+                out.write("Model {} Test BCE: {:.7f}\n".format(1, ce))
 
             else:
                 model_weights = os.path.join(evaluator_dir, "evaluator_{}.pt".format(model_num))
