@@ -641,7 +641,7 @@ class ContrastiveLearner(object):
         # scaler.transform(data)
 
         scikit_eval = len(glob(os.path.join(evaluator_dir, "evaluator_*.pkl"))) > 0
-        distill_eval = len(glob(os.path.join(evaluator_dir, "student_pretrain_distill_with_new_teacher_15.pt"))) > 0
+        distill_eval = len(glob(os.path.join(evaluator_dir, "studentONLY_new_pretrain_distill_baseline.pt"))) > 0
 
         with open(log_file, "a+") as out:
             if scikit_eval:
@@ -665,7 +665,7 @@ class ContrastiveLearner(object):
             elif distill_eval:
                 encoder.eval()
                 print('Distill Testing')
-                model_weights = os.path.join(evaluator_dir, "student_pretrain_distill_with_new_teacher_15.pt")
+                model_weights = os.path.join(evaluator_dir, "studentONLY_new_pretrain_distill_baseline.pt")
                 loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
                                          data=data)
                 model = DistillCNN(task, 1).to(self.device)
