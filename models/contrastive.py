@@ -120,7 +120,7 @@ class ContrastiveLearner(object):
             roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
         except:
             roc_score = 0
-        writer.add_scalar('auc/pretrain', roc_score, 0)
+        writer.add_scalar('AUC/pretrain', roc_score, 0)
         print(
             "pretrain KNN Acc: {:.3f}\n".format(roc_score))
         with open(log_file, "a+") as log:
@@ -265,7 +265,7 @@ class ContrastiveLearner(object):
         return model
 
     def fine_tune(self, n_splits, task, label_file, log_file, augment=None, encoder=None, evaluator_type=None,
-                  learning_rate=0.0):
+                  learning_rate=0.0, model_num=0):
         df = self.dataset.labels
         data = self.dataset.data
         total_train_acc = 0
@@ -274,7 +274,7 @@ class ContrastiveLearner(object):
         print('Batch Size: {}'.format(self.batch_size))
         test_dataset = get_dataset(task, label_file, base_dir, split="val")
 
-        model_id = len(glob(os.path.join(log_dir, "evaluator_*")))
+        model_id = model_num
 
         print("training model with id: {}".format(model_id))
         #weights = torch.as_tensor(la.class_distribution(task, label_file)).float().to(self.device)
@@ -995,7 +995,7 @@ def pretrain_(epochs, task, base_dir, log_dir, augment, train_prop=1, exp=None, 
     learner.pre_train(log_file, task, label_file, augment, learning_rate, restore=restore)
 
 
-def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
+def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False, model_num=0):
     log_file = os.path.join(log_dir, f"train_log.txt")
 
     num_epochs = epochs
@@ -1024,7 +1024,7 @@ def train_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_p
         encoder.load_state_dict(state_dict)
     except FileNotFoundError:
         encoder = None
-    learner.fine_tune(folds, task, label_file, log_file, augment, encoder, evaluator, learning_rate)
+    learner.fine_tune(folds, task, label_file, log_file, augment, encoder, evaluator, learning_rate, model_num)
 
 
 def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train_prop=1, full_data=False):
@@ -1120,7 +1120,7 @@ if __name__ == "__main__":
         print(f"Log Dir: {log_dir}")
         fi.make_path(log_dir)
         train_(args.epochs, args.task, base_dir, log_dir, args.evaluator, args.augment, args.folds, args.train_prop,
-               args.full_data)
+               args.full_data, args.model_num)
     elif args.mode == "distill":
         if log_dir is not None:
             log_dir = os.path.join(base_dir, "logs", log_dir)
