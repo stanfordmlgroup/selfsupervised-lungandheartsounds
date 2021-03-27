@@ -787,6 +787,8 @@ def get_scikit_loader(device, task, label_file, base_dir, split="train", df=None
             with torch.no_grad():
                 x = x.view(1, 1, x.shape[0], x.shape[1]).to(device)
                 x = encoder(x, tune=True)
+        else:
+            x = x.view(-1)
         X.append(x.cpu().detach().numpy())
 
     if split == "test" or split == "val":

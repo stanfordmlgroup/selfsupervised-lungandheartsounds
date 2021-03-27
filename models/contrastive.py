@@ -230,7 +230,7 @@ class ContrastiveLearner(object):
                 roc_score = roc_auc_score(test_y, evaluator.predict_proba(test_X)[:, 1])
             except:
                 roc_score = 0
-            writer.add_scalar('auc/pretrain', roc_score, epoch_counter)
+            writer.add_scalar('AUC/pretrain', roc_score, epoch_counter)
             model.train()
 
             fold_train_acc = evaluator.score(test_X, test_y)
@@ -299,157 +299,86 @@ class ContrastiveLearner(object):
 
         sanity_loader = get_data_loader(task, label_file, base_dir, 1, "test")
 
-        if encoder is not None:
-            total_train_acc = 0
-            base_encoder = encoder
+        total_train_acc = 0
 
-            encoder = copy.deepcopy(base_encoder).to(self.device)
-            if evaluator_type == "linear":
+        if evaluator_type == "linear":
+            train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", train_df,
+                                                 encoder, data=train_data)
+            id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "val", test_df,
+                                                   encoder, data=test_data)
+            _, X, y = get_scikit_loader(self.device, task, label_file, base_dir, "test", encoder=encoder)
+
+            if encoder is not None:
                 for layer in encoder.children():
                     for param in layer.parameters():
                         param.requires_grad = False
                 model = Logistic(encoder.num_ftrs).to(self.device)
-                train_X, train_y = get_scikit_loader(self.device, task, label_file, base_dir, "train", train_df,
-                                                     encoder, data=train_data)
-                id, test_X, test_y = get_scikit_loader(self.device, task, label_file, base_dir, "val", test_df,
-                                                       encoder, data=test_data)
-                _, X, y = get_scikit_loader(self.device, task, label_file, base_dir, "test", encoder=encoder)
-                # optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
-                #                            lr=10 * learning_rate)
-                optimizer = torch.optim.Adam(model.parameters(), lr=10*learning_rate, weight_decay=1e-4)
-                counter = 0
-                best_test_loss = np.inf
-                epoch = 0
-                for epoch in range(1, self.epochs + 1):
-                    start = time.time()
-                    train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
-                                                                        self.device,
-                                                                        loss)
-                    test_loss, test_true, test_pred = self._predict(model, id, test_X, test_y, self.device, loss)
-                    sanity_loss, sanity_true, sanity_pred = self._predict(model, _, X, y, self.device, loss)
-                    sanity_pred = expit(sanity_pred)
-                    train_pred, test_pred = expit(train_pred), expit(test_pred)
-                    train_accuracy = lo.get_accuracy(train_true, train_pred)
-                    test_accuracy = lo.get_accuracy(test_true, test_pred)
-                    if test_loss < best_test_loss:
-                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
-                        best_test_loss = test_loss
-                        counter = 0
-                    else:
-                        counter += 1
-                    try:
-                        test_roc_score = roc_auc_score(test_true, test_pred)
-                        train_roc_score = roc_auc_score(train_true, train_pred)
-                        sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
-                        writer.add_scalar('AUC/test', sanity_roc_score, epoch)
-                        writer.add_scalar('loss/test', sanity_loss, epoch)
-                        train_auc += train_roc_score
-                        test_auc += test_roc_score
-                        valid_auc_counter += 1
+            else:
+                print("No encoder provided. Supervised Training...\n")
+                model = Logistic(train_X[0].shape[0]).to(self.device)
 
-                        writer.add_scalar('AUC/train', train_roc_score, epoch)
-                        writer.add_scalar('AUC/val', test_roc_score, epoch)
-                        writer.add_scalar('loss/train', train_loss, epoch)
-                        writer.add_scalar('loss/val', test_loss, epoch)
-                    except:
-                        pass
-                    # if counter == self.epochs//5:
-                    #     print("Early stop...")
-                    #     break
-                    total_train_acc += train_accuracy
-                    total_test_acc += test_accuracy
-                train_auc /= valid_auc_counter
-                test_auc /= valid_auc_counter
-            elif evaluator_type == "fine-tune":
+            # optimizer = torch.optim.LBFGS(model.parameters(), history_size=10, max_iter=4,
+            #                            lr=10 * learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
+            counter = 0
+            best_test_loss = np.inf
+            epoch = 0
+            for epoch in range(1, self.epochs + 1):
+                start = time.time()
+                train_loss, train_true, train_pred = self._optimize(model, train_X, train_y, optimizer,
+                                                                    self.device,
+                                                                    loss)
+                test_loss, test_true, test_pred = self._predict(model, id, test_X, test_y, self.device, loss)
+                sanity_loss, sanity_true, sanity_pred = self._predict(model, _, X, y, self.device, loss)
+                sanity_pred = expit(sanity_pred)
+                train_pred, test_pred = expit(train_pred), expit(test_pred)
+                train_accuracy = lo.get_accuracy(train_true, train_pred)
+                test_accuracy = lo.get_accuracy(test_true, test_pred)
+                if test_loss < best_test_loss:
+                    lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
+                    best_test_loss = test_loss
+                    counter = 0
+                else:
+                    counter += 1
+                try:
+                    test_roc_score = roc_auc_score(test_true, test_pred)
+                    train_roc_score = roc_auc_score(train_true, train_pred)
+                    sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
+                    writer.add_scalar('AUC/test', sanity_roc_score, epoch)
+                    writer.add_scalar('loss/test', sanity_loss, epoch)
+                    train_auc += train_roc_score
+                    test_auc += test_roc_score
+                    valid_auc_counter += 1
+
+                    writer.add_scalar('AUC/train', train_roc_score, epoch)
+                    writer.add_scalar('AUC/val', test_roc_score, epoch)
+                    writer.add_scalar('loss/train', train_loss, epoch)
+                    writer.add_scalar('loss/val', test_loss, epoch)
+                except:
+                    pass
+                # if counter == self.epochs//5:
+                #     print("Early stop...")
+                #     break
+                total_train_acc += train_accuracy
+                total_test_acc += test_accuracy
+
+        elif evaluator_type == "fine-tune":
+            if encoder is not None:
                 model = SSL(encoder).to(self.device)
-                train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                               data=train_data)
-                test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
-                optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
-
-                counter = 0
-                best_test_loss = np.inf
-                #best_test_auc = 0
-                epoch = 0
-                counter = 0
-                for epoch in range(1, self.epochs + 1):
-                    start = time.time()
-                    train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
-                                                                     loss)
-                    test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
-                    sanity_loss, sanity_true, sanity_pred = self._test(model, sanity_loader, self.device, loss)
-                    sanity_pred = expit(sanity_pred)
-
-                    train_pred, test_pred = expit(train_pred), expit(test_pred)
-                    train_accuracy = lo.get_accuracy(train_true, train_pred)
-                    test_accuracy = lo.get_accuracy(test_true, test_pred)
-
-
-                    # if counter == self.epochs//5:
-                    #     print("Early stop...")
-                    #     break
-                    try:
-                        test_roc_score = roc_auc_score(test_true, test_pred)
-                        train_roc_score = roc_auc_score(train_true, train_pred)
-                        sanity_roc_score = roc_auc_score(sanity_true, sanity_pred)
-                        writer.add_scalar('AUC/test', sanity_roc_score, epoch)
-                        writer.add_scalar('loss/test', sanity_loss, epoch)
-                        train_auc += train_roc_score
-                        test_auc += test_roc_score
-                        valid_auc_counter += 1
-
-                        writer.add_scalar('AUC/train', train_roc_score, epoch)
-                        writer.add_scalar('AUC/val', test_roc_score, epoch)
-                        writer.add_scalar('loss/train', train_loss, epoch)
-                        writer.add_scalar('loss/val', test_loss, epoch)
-                    except:
-                        test_roc_score = 0
-
-                    if test_loss < best_test_loss:
-                        lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
-                        best_test_loss = test_loss
-                        counter = 0
-                    else:
-                        counter += 1
-
-                    total_train_acc += train_accuracy
-                    total_test_acc += test_accuracy
-                    elapsed = time.time() - start
-
-                    print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
-                    print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                    print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
-                                                                                         test_accuracy, test_roc_score))
-                    with open(log_file, "a+") as log:
-                        log.write(
-                            "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
-                                epoch, train_loss, test_loss, train_accuracy, test_accuracy, test_roc_score
-                            )
-                        )
-
-            train_auc /= valid_auc_counter
-            test_auc /= valid_auc_counter
-
-            del model
-            torch.cuda.empty_cache()
-
-
-        else:
-            print("No encoder provided. Supervised Training...\n")
-            if evaluator_type == 'fine-tune':
+            else:
+                print("No encoder provided. Supervised Training...\n")
                 model = self.get_model(1)
-            elif evaluator_type == 'cnn':
-                model = CNN(task, 1).to(self.device)
 
             train_loader = get_data_loader(task, label_file, base_dir, self.batch_size, "train", df=train_df,
-                                           transform=augment, data=train_data)
+                                           data=train_data)
             test_loader = get_data_loader(task, label_file, base_dir, 1, "val", df=test_df, data=test_data)
-
             optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-2)
 
-            best_test_loss = np.inf
             counter = 0
-
+            best_test_loss = np.inf
+            #best_test_auc = 0
+            epoch = 0
+            counter = 0
             for epoch in range(1, self.epochs + 1):
                 start = time.time()
                 train_loss, train_true, train_pred = self._train(model, train_loader, optimizer, self.device,
@@ -457,10 +386,15 @@ class ContrastiveLearner(object):
                 test_loss, test_true, test_pred = self._test(model, test_loader, self.device, loss)
                 sanity_loss, sanity_true, sanity_pred = self._test(model, sanity_loader, self.device, loss)
                 sanity_pred = expit(sanity_pred)
+
                 train_pred, test_pred = expit(train_pred), expit(test_pred)
                 train_accuracy = lo.get_accuracy(train_true, train_pred)
                 test_accuracy = lo.get_accuracy(test_true, test_pred)
 
+
+                # if counter == self.epochs//5:
+                #     print("Early stop...")
+                #     break
                 try:
                     test_roc_score = roc_auc_score(test_true, test_pred)
                     train_roc_score = roc_auc_score(train_true, train_pred)
@@ -477,21 +411,22 @@ class ContrastiveLearner(object):
                     writer.add_scalar('loss/val', test_loss, epoch)
                 except:
                     test_roc_score = 0
+
                 if test_loss < best_test_loss:
                     lo.save_weights(model, os.path.join(log_dir, "evaluator_" + str(model_id) + ".pt"))
                     best_test_loss = test_loss
                     counter = 0
                 else:
                     counter += 1
-                # if counter == self.epochs // 5:
-                #     print("Early stop...")
-                #     break
 
+                total_train_acc += train_accuracy
+                total_test_acc += test_accuracy
                 elapsed = time.time() - start
+
                 print("\tEpoch: {:03d}, Time: {:.3f} s".format(epoch, elapsed))
                 print("\t\tTrain BCE: {:.7f}\tVal BCE: {:.7f}".format(train_loss, test_loss))
-                print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy, test_accuracy,
-                                                                                     test_roc_score))
+                print("\t\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(train_accuracy,
+                                                                                     test_accuracy, test_roc_score))
                 with open(log_file, "a+") as log:
                     log.write(
                         "\tEpoch: {:03d}\tTrain Loss: {:.7f}\tVal Loss: {:.7f}\tTrain Acc: {:.7f}\tVal Acc: {:.7f}\tROC: {:.7f}\n".format(
@@ -499,10 +434,12 @@ class ContrastiveLearner(object):
                         )
                     )
 
-                total_train_acc += train_accuracy
-                total_test_acc += test_accuracy
-            train_auc /= valid_auc_counter
-            test_auc /= valid_auc_counter
+        train_auc /= valid_auc_counter
+        test_auc /= valid_auc_counter
+
+        del model
+        torch.cuda.empty_cache()
+
         print(
             "Total Cross Val Train Acc: {:.7f}\tTotal Cross Val Test Acc: {:.7f}\n".format(total_train_acc / epoch,
                                                                                            total_test_acc / epoch))
@@ -694,17 +631,11 @@ class ContrastiveLearner(object):
                 model_weights = os.path.join(evaluator_dir, "evaluator_{}.pt".format(model_num))
                 loader = get_data_loader(task, label_file, base_dir, batch_size=self.batch_size, split="test",
                                          data=data)
-                if encoder is None:
-                    if evaluator_type == 'fine-tune':
+                if evaluator_type == 'fine-tune':
+                    if encoder is None:
                         model = self.get_model(1)
-                    elif evaluator_type == 'cnn':
-                        model = CNN(task, 1).to(self.device)
-                    state_dict = torch.load(model_weights)
-                    model.load_state_dict(state_dict)
-                    model.eval()
-                    ce, y_true, y_pred = self._test(model, loader, self.device, loss, log_file)
-                elif evaluator_type == 'fine-tune':
-                    model = SSL(encoder).to(self.device)
+                    else:
+                        model = SSL(encoder).to(self.device)
                     state_dict = torch.load(model_weights)
                     model.load_state_dict(state_dict)
                     model.eval()
@@ -713,7 +644,10 @@ class ContrastiveLearner(object):
                     del loader
                     id, X, y = get_scikit_loader(self.device, task, label_file, base_dir, split="test",
                                                  encoder=encoder, data=data)
-                    model = Logistic(encoder.num_ftrs).to(self.device)
+                    if encoder is None:
+                        model = Logistic(X[0].shape[0]).to(self.device)
+                    else:
+                        model = Logistic(encoder.num_ftrs).to(self.device)
                     state_dict = torch.load(model_weights)
                     model.load_state_dict(state_dict)
                     model.eval()
@@ -751,7 +685,7 @@ class ContrastiveLearner(object):
             # roc_score = roc_auc_score(scikit_y, baseline_pred)
             # print("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
             # out.write("Baseline:\nAUC-ROC: {:.7f}\n{}\n".format(roc_score, report))
-        return loss
+        return roc_score
 
     def _load_pre_trained_weights(self, model, restore=False):
         try:
@@ -1085,7 +1019,6 @@ def distill_(epochs, task, base_dir, log_dir, evaluator, augment, folds=5, train
     except FileNotFoundError:
         raise Exception("distillation requires teacher model")
     learner.distill(folds, task, label_file, log_file, augment, teacher, evaluator, learning_rate)
-    pass
 
 
 def test_(task, base_dir, log_dir, evaluator, seed=None, model_num=0):
@@ -1101,7 +1034,10 @@ def test_(task, base_dir, log_dir, evaluator, seed=None, model_num=0):
         encoder.load_state_dict(state_dict)
     except FileNotFoundError:
         encoder = None
-    learner.test(task, label_file, log_file, encoder, log_dir, evaluator_type=evaluator, model_num=model_num)
+    auc = learner.test(task, label_file, log_file, encoder, log_dir, evaluator_type=evaluator, model_num=model_num)
+    auc_file = os.path.join(log_dir, "auc.csv")
+    with open(auc_file, "a") as f:
+        f.write("{:.3f}\n".format(auc))
 
 
 if __name__ == "__main__":
