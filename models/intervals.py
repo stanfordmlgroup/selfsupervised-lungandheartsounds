@@ -44,7 +44,7 @@ class Model():
         evaluator = model_group(self.name)
         if evaluator == 'fine-tune':
             if encoder is None:
-                model = ResNetSimCLR(out_dim=1, base_model="resnet18").to(self.device)
+                model = ResNetSimCLR(out_dim=1, base_model="resnet18").to(device)
             else:
                 model = SSL(encoder).to(device)
 
