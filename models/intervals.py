@@ -204,6 +204,7 @@ def main(working_dir, dataset, num_replicates):
         learner = ContrastiveLearner(dataset, 0, 1, direct)
 
         try:
+            state_dict = torch.load(os.path.join(direct, 'encoder.pth'))
             encoder = learner.get_model(256, restore=True)
         except FileNotFoundError:
             encoder = None
