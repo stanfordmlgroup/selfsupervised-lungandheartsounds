@@ -242,4 +242,4 @@ if __name__ == "__main__":
     num_replicates = 1000
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     main('../data/logs/3_27', 'disease', num_replicates)
-    #main('../heart/logs/3_27', 'heart', num_replicates)
+    main('../heart/logs/3_27', 'heart', num_replicates)

@@ -22,18 +22,18 @@ cd ../models ||exit
 
 for i in range 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39
 do
-  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop .1 --epoch 1000 --evaluator linear
+  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop .1 --epoch 1000 --evaluator linear --model_num $i
   python contrastive.py --mode test --task disease --log_dir 3_27/baseline --data ../data --evaluator linear --model_num $i
 done
 
 for i in range 50 51 52 53 54 55 56 57 58 59
 do
-  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop .5 --epoch 1000 --evaluator linear
+  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop .5 --epoch 1000 --evaluator linear --model_num $i
   python contrastive.py --mode test --task disease --log_dir 3_27/baseline --data ../data --evaluator linear --model_num $i
 done
 for i in range 65 66 67 68 69
 do
-  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop 1.0 --epoch 1000 --evaluator linear
+  python contrastive.py --mode train --task disease --log_dir 3_27/baseline --data ../data  --train_prop 1.0 --epoch 1000 --evaluator linear  --model_num $i
   python contrastive.py --mode test --task disease --log_dir 3_27/baseline --data ../data --evaluator linear --model_num $i
 done
 
