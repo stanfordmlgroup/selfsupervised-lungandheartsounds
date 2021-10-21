@@ -20,7 +20,6 @@ def slice_data(start, end, raw_data, sample_rate):
 
 def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
     """Computes the supposed length of sliced data
-
     samp_size = sample size from the data
     samp_rate = sampling rate. by default since we're working on 24-bit files, we'll use 96kHz
     time = length of time for the audio file. by default we'll use the max we have which is 5.48
@@ -36,7 +35,6 @@ def compute_len(samp_rate=22050, time=0, acquisition_mode=0):
 
 def get_cycledf(audio_text_loc):
     """identify all cycle information files
-
     creates a list (files_) containting information for each respiratory cycle for a given wav file. Each element of
     the list is a dataframe containing the filename, patient ID, start, end, crackles, wheezes, and acquisition mode
     """
@@ -58,7 +56,6 @@ def get_cycledf(audio_text_loc):
 
 def mergedf(cycle_info, diagnosis):
     """process the dataframes and merge so that we have start and end info for each slice
-
     first converts cycle list to a df. Then merges the diagnosis info with the cycle info so each cycle (row) contains
     the appropriate diagnosis.
     """
@@ -76,12 +73,10 @@ def max_length(files_df):
 
 def process(data_path='../data', labels_only=False):
     """Process the raw wavs to get each slice
-
     INPUT: A data dir where audio files and cycle info is stored in data_path/audio_txt_files
     OUTPUTS: data_path/processed with each recording split into the respiratory cycles
              disease_labels.csv: file with patient ids and their disease diagnoses mapped by Healthy, COPD, or Other
              symptoms_labels.csv: file with respiratory cycle ids and presence of crackles and wheezes
-
     The function parses through each of the txt files and filenames to identify start and end for each cycle. A good
     clipping value is then calculated. Each slice from the raw audios is processed so that they are of uniform length by
     cropping/padding as appropriate. Files are then saved.
