@@ -54,6 +54,7 @@ def chroma(file_name=None):
 
 
 class Mel(object):
+    """Mel spectrogram -- used for experiment feature extraction"""
     def __init__(self, raw_aug=None):
         self.raw_aug = raw_aug
 
@@ -147,7 +148,7 @@ def tonnetz(file_name=None):
 def example(example_file):
     """function for showing example feature shapes"""
     print("Feature Extraction Examples:")
-    print("Filename: 101_1b1_Al_sc_Meditron.wav")
+    print(f"Filename: {example_file}")
     print("Size of VGGish embedding: " + str(get_vggish_embedding(example_file).shape))
     print("Size of STFT: " + str(stft(example_file).shape))
     print("Size of MFCCS: " + str(mfccs(example_file).shape))
