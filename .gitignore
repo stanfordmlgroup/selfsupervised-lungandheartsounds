@@ -71,12 +71,24 @@ target/
 
 # Mypy cache
 .mypy_cache/
-/data.tar
 
+/data.tar
+*.zip
+*.h5
+*/logs
 /disease/data/processed/*
 /data/audio_and_txt_files/
 /data/processed/Other/
 /data/processed/Healthy/
 /data/processed/COPD/
-/data
-/heartchallenge
+/data/logs
+/heart/raw/training-*/
+/heart/raw/validation/
+/data/test_set
+/heartchallenge/audio_loc
+/heartchallenge/raw
+*.wav
+*.pt
+*.pkl
+*.dat
+*.hea

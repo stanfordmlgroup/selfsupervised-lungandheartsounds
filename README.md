@@ -1,5 +1,34 @@
 # aihc-sum20-lung-sounds
 
+## Datasets
+- Heart (Physionet)
+    - Normal v Abnormal (2575/665)
+        - Abnormal: "The patients suffer from a variety of illnesses (which we do not provide on a case-by-case basis), but typically they are heart valve defects and coronary artery disease patients. Heart valve defects include mitral valve prolapse, mitral regurgitation, aortic stenosis and valvular surgery. All the recordings from the patients were generally labeled as abnormal. We do not provide more specific classification for these abnormal recordings."
+    - Extest (648 samples {324 of each}), Train (2592 samples) {Internal Test/Fine-Tune (648 samples {324 of each})}
+    - [dataset](https://physionet.org/content/challenge-2016/1.0.0/)
+    - Mel mean: .7196, std: 32.07 
+- Heart (Peter J Bentley)
+    - Normal v Abnormal (493/271)
+        - Abnormal: Artifact: 56, Extrasound: 27, Extrastole: 66, Murmur: 178 (Artifacts dropped)
+    - Extest (152 samples {76 of each}), Internal Test/Fine-Tune (612 samples)
+    - [dataset](http://www.peterjbentley.com/heartchallenge/)
+    - Mel mean: .9364, std: 33.991  
+- Lung sounds (disease)
+    - Normal v Abnormal (26/100)
+        - Abnormal: COPD: 64, Healthy: 26, URTI: 14, Bronchiectasis: 7, Bronchiolitis: 6, Pneumonia: 6, LRTI: 2, Asthma: 1
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples) {Internal Test/Fine-Tune (30 samples {15 of each})}
+    - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
+    - Mel mean: 3.273, std: 100.439 
+- Lung sounds (crackles)
+    - Normal v Abnormal (4528/2370)
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
+    - *Splits by patient not by sample*
+    - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
+- Lung sounds (wheezes)
+    - Normal v Abnormal (5506/1392)
+    - Extest (30 samples {15 of each}), Internal Test/Fine-Tune (96 samples)
+    - *Splits by patient not by sample*
+    - [dataset](https://www.kaggle.com/vbookshelf/respiratory-sound-database)
 ## Utility scripts & methods w/ relevant usage examples
 ### process.py
 Provides functionality to take raw audio and text files and generate a processed dir (_path_/processed) with audio files spliced by respiratory cycle. Also generates disease_labels.csv (mapped disease diagnoses) and symptoms_labels.csv (presence of crackles/wheezes for each respiratory file)  
@@ -12,7 +41,8 @@ DEFAULTS:
 data: /data/
 labels_only: False
 ### split.py
-Creates train test splits. Each patient id is assigned to exactly  
+Creates train test splits. Each patient id is assigned to exactly one of train/test.  
+
 #### Running script from terminal
 ```
 $ python split.py [--data "data directory"] [--splits "desired location of splits"] [--seed "seed for random sampling"] [--distribution "dict of classes and desired number of test files from each class"]

@@ -1,0 +1,46 @@
+Model 0 Test CE: 0.5756584
+Model 1 Test CE: 0.6598920
+Model 2 Test CE: 0.5810385
+Model 3 Test CE: 0.8054159
+Model 4 Test CE: 0.7065980
+
+Per category AUC:Normal: 0.631
+Murmur: 0.613
+Extrastole: 0.649
+Extrasound: 0.824
+Artifact: 0.840
+Seed: 255	Folds: 5
+Ensemble CNNlight:
+Ensemble AUC-ROC: 0.7114645
+              precision    recall  f1-score   support
+
+      Normal       0.69      0.55      0.61       111
+      Murmur       0.28      0.63      0.39        38
+  Extrastole       0.25      0.13      0.17        15
+  Extrasound       1.00      0.11      0.20         9
+    Artifact       0.44      0.21      0.29        19
+
+    accuracy                           0.48       192
+   macro avg       0.53      0.33      0.33       192
+weighted avg       0.56      0.48      0.48       192
+
+Confusion Matrix:
+[[61 43  4  0  3]
+ [11 24  2  0  1]
+ [ 6  7  2  0  0]
+ [ 4  3  0  1  1]
+ [ 7  8  0  0  4]]
+Baseline:
+AUC-ROC: 0.5000000
+              precision    recall  f1-score   support
+
+      Normal       0.54      1.00      0.70       158
+      Murmur       0.00      0.00      0.00        67
+  Extrastole       0.00      0.00      0.00        20
+  Extrasound       0.00      0.00      0.00        15
+    Artifact       0.00      0.00      0.00        32
+
+    accuracy                           0.54       292
+   macro avg       0.11      0.20      0.14       292
+weighted avg       0.29      0.54      0.38       292
+

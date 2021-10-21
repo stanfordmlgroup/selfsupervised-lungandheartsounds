@@ -1,0 +1,3 @@
+task: disease, mean: -0.0014936, std: 0.1282109
+task: heartchallenge, mean: -0.0000073, std: 0.0635951
+task: heart, mean: -0.0035824, std: 0.0735521
