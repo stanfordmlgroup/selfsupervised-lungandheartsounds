@@ -69,7 +69,7 @@ def class_distribution(task, label_file):
     with open(split_file_path, "r") as f:
         IDs = set([line.strip() for line in f])
 
-    labelsdf=labelsdf[labelsdf.ID.isin(IDs)]
+    labelsdf = labelsdf[labelsdf.ID.isin(IDs)]
 
     distribution = []
     if task == "symptom":
@@ -121,3 +121,27 @@ def heart_recover_label(label):
         return "Normal"
     elif label == 1:
         return "Abnormal"
+
+
+def external_one_hot(label):
+    if label == "N":
+        return 0
+    else:
+        return 1
+
+
+def get_lung_full_labels():
+    root = "../data/"
+    disease_labels = root + "processed/disease_labels.csv"
+    pt_data = root + "patient_diagnosis.csv"
+    output_labels = root + "processed/lung_labels.csv"
+
+    df = pd.read_csv(disease_labels)[["ID", "cycle"]]
+    df = df.rename(columns={"ID": "key"}).set_index("key")
+    true_labels = pd.read_csv(pt_data, names=['key', 'diagnosis']).set_index('key')
+    final = df.join(true_labels).reset_index().rename(columns={"key": "ID"})
+    final.to_csv(output_labels, index=False)
+
+
+if __name__ == "__main__":
+    get_lung_full_labels()

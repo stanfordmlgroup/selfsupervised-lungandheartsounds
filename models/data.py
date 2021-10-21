@@ -9,13 +9,15 @@ from tqdm import tqdm
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append("../utils")
 from features import Mel, get_vggish_embedding, preprocess
+import labels as la
+import librosa as lb
 from file import get_location
 import augment as au
 import torchvision.transforms as transforms
-import time
 import numpy as np
 import h5py as h5
 import copy
+from glob import glob
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -79,7 +81,7 @@ class LungDatasetExp3(Dataset):
 
         # Positive pairs are from the same locations in the lung. Negative pairs are from different patients in the same
         # or different locations.
-        try :
+        try:
             if self.exp == 0:
                 cycles = self.labels[self.labels['ID'] == id].drop(columns=['level_0'])
                 cycles = cycles.reset_index()
@@ -526,6 +528,9 @@ class LungDataset(Dataset):
             else:
                 return 1
 
+        else:
+            return row["diagnosis"]
+
     def get_split(self, df, split_file_path, train_prop=1.0):
         # Takes in a DataFrame and a path to a file of only Ints denoting Patient ID.
         # Returns a DataFrame of only samples with Patient IDs contained in the split.
@@ -579,7 +584,7 @@ class HeartDataset(Dataset):
     def __getitem__(self, idx):
         row = self.labels.iloc[idx]
         X = self.data[idx]
-        #Resize function here possibly (check X dim)
+        # Resize function here possibly (check X dim)
 
         # Get label
         y = self.get_class_val(row)
@@ -681,6 +686,36 @@ class HeartChallengeDataset(Dataset):
         return df[df.ID.isin(IDs)]
 
 
+class ExternalDataset(Dataset):
+    def __init__(self, path):
+        self.files = glob(os.path.join(os.getcwd(), path, "processed/audio/*.wav"))
+        self.max_len = 0
+        self.mel_transform = Mel()
+        data_list = []
+
+        for file in self.files:
+            data, _ = lb.load(file)
+            data_list.append(data)
+            self.max_len = max(data.shape[0], self.max_len)
+
+        self.data = np.zeros((len(data_list), self.max_len))
+        for i, datum in enumerate(data_list):
+            length = datum.shape[0]
+            self.data[i][(self.max_len - length) // 2:(self.max_len - length) // 2 + length] = datum
+
+        self.norm_func = transforms.Normalize([self.data.mean()], [self.data.std()])
+
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        path = self.files[idx]
+        diagnosis = path.split("_")[1].split(",")[0]
+        X, y = process_data("test", self.mel_transform, self.data[idx], la.external_one_hot(diagnosis), self.norm_func)
+        return idx, X, y
+
+
 def get_transform(augment=None):
     if augment is None:
         mel = Mel()
@@ -740,7 +775,7 @@ def process_data(mode, augment, X, y, norm_func):
 def get_dataset(task, label_file, base_dir, split="train", train_prop=1.0, df=None, transform=None, data=None,
                 exp=None):
     dataset = []
-    if task == "crackle" or task == "disease" or task == "wheeze":
+    if task == "crackle" or task == "disease" or task == "wheeze" or task == "lung":
         dataset = LungDataset(label_file, base_dir, task, split=split, transform=transform, train_prop=train_prop,
                               df=df, data=data)
     elif task == "heart":
@@ -757,6 +792,8 @@ def get_dataset(task, label_file, base_dir, split="train", train_prop=1.0, df=No
             dataset = LungDataset(label_file, base_dir, "disease", split=split, transform=transform,
                                   train_prop=train_prop,
                                   df=df, data=data)
+    elif task == "external":
+        dataset = ExternalDataset(base_dir)
     return dataset
 
 
