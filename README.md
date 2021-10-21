@@ -1,5 +1,8 @@
 # aihc-sum20-lung-sounds
+## Experiment Reproduction
+All scripts for reporoducing experimental results can be found in the scripts folder. The test script enables quickly running testing.
 
+models/intervals.py has the functionality to analyze bootstrapped confidence intervals from trained models.
 ## Datasets
 - Heart (Physionet)
     - Normal v Abnormal (2575/665)
