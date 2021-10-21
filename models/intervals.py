@@ -75,7 +75,11 @@ def single_replicate_all_models(gt, task, models, metric_str, replicate_num):
 
     for model in models:
         y_score = pd.Series(model.scores)[sample_ids].to_list()
-        performance = sklearn.metrics.roc_auc_score(y_true, y_score)
+
+        if metric_str == 'auc':
+            performance = sklearn.metrics.roc_auc_score(y_true, y_score)
+        elif metric_str == 'f1':
+            performance = sklearn.metrics.f1_score(y_true, np.round(y_score))
         performances[model.name] = performance
     return performances
 
@@ -192,7 +196,7 @@ def run_stage3(metric, read_path, save_path):
 
 
 def main(working_dir, dataset, num_replicates):
-    metrics = 'auc'
+    metrics = ['f1', 'auc']
     directories = glob.glob(os.path.join(working_dir, '*'))
 
     base_dir = os.path.split(working_dir)[0][:-5]
@@ -211,31 +215,31 @@ def main(working_dir, dataset, num_replicates):
 
         scikit = id, X, y = get_scikit_loader(device, dataset, label_file, base_dir, split="test",
                                               encoder=encoder)
+        for metric in metrics:
+            stage_1_save_path = f'{direct}/results/raw_{metric}'
+            run_stage1(dataset,
+                       num_replicates=num_replicates,
+                       metric_str=metric,
+                       read_path=f'{direct}',
+                       save_path=stage_1_save_path,
+                       encoder=encoder,
+                       gt=y,
+                       data=data,
+                       scikit=scikit
+                       )
 
-        stage_1_save_path = f'{direct}/results/raw_{metrics}'
-        run_stage1(dataset,
-                   num_replicates=num_replicates,
-                   metric_str=metrics,
-                   read_path=f'{direct}',
-                   save_path=stage_1_save_path,
-                   encoder=encoder,
-                   gt=y,
-                   data=data,
-                   scikit=scikit
-                   )
+            stage_2_save_path = f'{direct}/results/processed_{metric}'
+            run_stage2(dataset,
+                       read_path=stage_1_save_path,
+                       save_path=stage_2_save_path,
+                       confidence_level=0.05,
+                       )
 
-        stage_2_save_path = f'{direct}/results/processed_{metrics}'
-        run_stage2(dataset,
-                   read_path=stage_1_save_path,
-                   save_path=stage_2_save_path,
-                   confidence_level=0.05,
-                   )
-
-        stage_3_save_path = f'{direct}/results/'
-        run_stage3(metrics,
-                   read_path=stage_2_save_path,
-                   save_path=stage_3_save_path
-                   )
+            stage_3_save_path = f'{direct}/results/'
+            run_stage3(metric,
+                       read_path=stage_2_save_path,
+                       save_path=stage_3_save_path
+                       )
 
 
 if __name__ == "__main__":
@@ -243,3 +247,7 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     main('../data/logs/3_27', 'disease', num_replicates)
     main('../heart/logs/3_27', 'heart', num_replicates)
+    main('../external/logs/heart', 'external', num_replicates)
+    main('../external/logs/lung', 'external', num_replicates)
+    main('../external/logs/extra', 'external', num_replicates)
+

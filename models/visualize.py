@@ -40,21 +40,22 @@ def visualize_embeddings(task, base_dir, log_dir, model_file):
 
     pca_50 = PCA(n_components=50)
     pca_result_50 = pca_50.fit_transform(data_subset)
-    tsne = TSNE(n_components=2, verbose=0, perplexity=40, n_iter=300)
-    tsne_pca_results = tsne.fit_transform(pca_result_50)
+    for perplexity in [5, 25, 50]:
+        tsne = TSNE(n_components=2, verbose=0, perplexity=perplexity, n_iter=300)
+        tsne_pca_results = tsne.fit_transform(pca_result_50)
 
-    df['tsne-pca50-one'] = tsne_pca_results[:, 0]
-    df['tsne-pca50-two'] = tsne_pca_results[:, 1]
-    plt.figure(figsize=(5, 4))
-    sns.scatterplot(
-        x="tsne-pca50-one", y="tsne-pca50-two",
-        hue="y",
-        palette=sns.color_palette("hls", 2),
-        data=df,
-        legend="full",
-        alpha=0.3,
-    )
-    plt.savefig(os.path.join(log_dir, model_file[:-4] + '_viz.png'))
+        df['tsne-pca50-one'] = tsne_pca_results[:, 0]
+        df['tsne-pca50-two'] = tsne_pca_results[:, 1]
+        plt.figure(figsize=(5, 4))
+        sns.scatterplot(
+            x="tsne-pca50-one", y="tsne-pca50-two",
+            hue="y",
+            palette=sns.color_palette("hls", len(pd.unique(df['y']))),
+            data=df,
+            legend="full",
+            alpha=0.3,
+        )
+        plt.savefig(os.path.join(log_dir, model_file[:-4] + f'_{perplexity}_viz.png'))
 
 
 if __name__ == '__main__':
