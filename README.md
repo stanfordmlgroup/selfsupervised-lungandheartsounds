@@ -1,3 +1,6 @@
+[![DOI](https://zenodo.org/badge/287370007.svg)](https://zenodo.org/badge/latestdoi/287370007)
+
+
 # aihc-sum20-lung-sounds
 ## Experiment Reproduction
 All scripts for reporoducing experimental results can be found in the scripts folder. The test script enables quickly running testing.
