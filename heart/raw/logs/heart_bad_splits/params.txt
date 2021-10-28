@@ -1,5 +1,0 @@
-Model: CNN
-Folds: 5
-Epochs: 50
-Batch size: 16
-Learning rate: 0.001
